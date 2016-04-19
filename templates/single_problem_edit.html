@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Редактирование задачи #{{ problem_id }} {% endblock %}
+{% block mathjax_include %}
+<script type="text/x-mathjax-config">MathJax.Hub.Config({skipStartupTypeset: true});</script>
+{{ super() }}
+{% endblock mathjax_include %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.3/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.3/mode-latex.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.3/theme-chrome.js"></script>
+{% endblock head %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xs-6">Условие задачи в базе данных:<br><div id="textarea" class="well" style="width:100%;height:300px;"></div><textarea id="hiddenarea" style="display:none">{{ problem_statement|safe }}</textarea></div>
+            <div class="col-xs-6"><span id="mathjaxonly">Ниже — условие, обработанное только MathJax.</span> <a class="a" href="" id="processcompletely">Полная обработка</a> <br><div class="well"><span id="typeset"></span></div></div>
+        </div>
+        <div class="row">
+            <div class="col-xs-6">
+                <div class="input-group">
+                    <span class="input-group-addon">Тема, к которой относится задача:</span>
+                    <input class="form-control" id="topic" placeholder="тема" value="{{ topic }}">
+                </div>
+            </div>
+            <div class="col-xs-6"></div>
+        </div>
+        <div class="row">
+            <div class="col-xs-6">
+                <div class="input-group">
+                    <span class="input-group-addon">ID задач-клонов:</span>
+                    <input class="form-control" id="clones" placeholder="номера, разделенные запятыми" value="{{ clones }}">
+                </div>
+            </div>
+            <div class="col-xs-6"></div>
+        </div>
+        <div class="row">
+            <div class="col-xs-12"><button class="btn btn-default" id="save">Сохранить изменения</button><span id="result" class="badge"></span></div>
+        </div>
+    </div>
+
+
+    <script>
+    $(function() {
+        var editor = ace.edit(document.querySelector('#textarea'));
+        editor.setValue(document.querySelector('#hiddenarea').value)
+        editor.setTheme('ace/theme/chrome');
+    	editor.getSession().setMode('ace/mode/latex');
+    	editor.$blockScrolling = Infinity; // To disable annoying ACE warning
+    	editor.setShowPrintMargin(false);
+    	editor.renderer.setShowGutter(true);
+    	editor.setFadeFoldWidgets(true);
+    	editor.resize();
+    	editor.getSession().setUseWrapMode(true);
+    	editor.focus();
+    	editor.on('blur', function(){
+    	    $('#typeset').text(editor.getValue());
+    	    $('#mathjaxonly').show(0);
+            MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')))
+    	});
+
+    	editor.gotoLine(1);
+
+        $("#topic").autocomplete({
+            source:function(request, response) {
+                $.getJSON("{{ url_for('autocomplete_topics') }}",{
+                    q: request.term,
+                }, function(data) {
+                    response(data.matching_results);
+                });
+            },
+            minLength: 2,
+            mustMatch: true
+        });
+
+        $('button#save').bind('click', function() {
+            var dataToSend = {};
+            dataToSend['statement'] = editor.getValue();
+            dataToSend['topic'] = document.querySelector('#topic').value;
+            dataToSend['clones'] = document.querySelector('#clones').value;
+            $.ajax({
+                url: '/problem/{{ problem_id }}/update',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('span#result').text(response.result);
+                    if( response.processedText ){
+                        $('#typeset').html(response.processedText);
+                        $('#mathjaxonly').hide(0);
+                        MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')));
+                    }
+                }
+            });
+            return false;
+        });
+
+        $('#processcompletely').bind('click', function() {
+            var dataToSend = {};
+            dataToSend['text'] = editor.getValue();
+            $.ajax({
+                url: '/latex_to_html',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    if( response.result ){
+                        $('#typeset').html(response.result);
+                        $('#mathjaxonly').hide(0);
+                        MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')));
+                    }
+                }
+            });
+            return false;
+        });
+    });
+    </script>
+{% endblock body %}

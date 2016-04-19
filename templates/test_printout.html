@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Создание и печать теста{% endblock %}
+{% block head %}
+    <style type="text/css">
+        .variant {
+            page-break-inside: avoid;
+        }
+        .statement {
+            font-family: "Verdana", Verdana, sans-serif;
+            font-size: small;
+        }
+        h1 {
+            text-decoration: underline;
+            font-weight: bold;
+            font-size: small;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+    </style>
+    <style type="text/css" media="print">
+    .dontprint {
+        display: none;
+    }
+    </style>
+{% endblock head %}
+
+{% block body %}
+    {% if not view_only %}
+    <div class="dontprint">
+        <button id="approve" class="btn btn-default">Утвердить</button>
+        <span id="result" class="badge"></span>
+        <div class="input-group">
+            <span class="input-group-addon">Номер теста:</span>
+            <input type="number" class="form-control" id="testnumber" value="{{ suggested_test_number }}">
+        </div>
+        <div class="input-group">
+            <span class="input-group-addon">Дата проведения теста:</span>
+            <input type="date" class="form-control" id="testdate" value="{{ date }}">
+        </div>
+        {% if log_info %}<div class="well">{{ log_info }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% for uid, ups in problems.items() %}
+    <div class="variant" data-uid="{{ uid }}" data-pids="{% for i in range(problem_qty[uid]) %}{% if i>0 %},{% endif %}{{ ups[i][0] }}{% endfor %}">
+        <h1>Студент <em>{{ users[uid] }}</em>, группа {{ group }}, дата <span class='header-date'>{{ date }}</span></h1>
+        <table>
+            <tr>{% for i in range(problem_qty[uid]) %}<td>{{ i+1 }}<sub>({{ ups[i][0] }})</sub></td>{% endfor %}</tr>
+            <tr>{% for i in range(problem_qty[uid]) %}<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>{% endfor %}</tr>
+        </table>
+        <ol>
+            {% for p in ups %}
+            <li><a class="dontprint badge" href="{{ url_for('edit_problem', problem_id=p[0]) }}">(ID {{ p[0] }})</a>
+            {{ p[1]|safe }}
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endfor %}
+
+    {% if not view_only %}
+    <script>
+    $(function(){
+        $('span#result').html('← нажатие на эту кнопку сохранит информацию о задачах в базе данных;<br>обязательно нужно это сделать перед печатью вариантов');
+
+        $('input#testdate').bind('change',function(){
+            $('.header-date').text(document.querySelector('#testdate').value);
+            return false;
+        });
+
+        $('button#approve').bind('click', function() {
+            var dataToSend = {};
+            dataToSend['test_date'] = document.querySelector('#testdate').value;
+            dataToSend['problems'] = '';
+            var variants = document.querySelectorAll('div.variant');
+
+            for( var i = 0; i < variants.length; ++i ){
+                if (i>0){
+                    dataToSend['problems'] += '|';
+                }
+                dataToSend['problems'] += variants[i].dataset.uid + ':' + variants[i].dataset.pids;
+            }
+
+            dataToSend['test_number'] = document.querySelector('#testnumber').value;
+            $('span#result').text('');
+            $.ajax({
+                url: '/test/create/{{ group }}',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('span#result').text(response.result);
+                }
+            });
+            return false;
+        });
+    });
+    </script>
+    {% endif %}
+{% endblock body %}

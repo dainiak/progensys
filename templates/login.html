@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Авторизация{% endblock %}
+{% block body %}
+    {% if bad_login %}
+    <div class="alert alert-danger" role="alert">Неверное имя пользователя и/или пароль</div>
+    {% endif %}
+
+    {% if login_successful %}
+    <div class="alert alert-success" role="alert">Вы успешно зашли в систему под именем {{ username }}</div>
+    {% endif %}
+
+    {% if already_logged %}
+    <div class="alert alert-info" role="alert">Вы находитесь в системе под именем {{ username }}. Для того, чтобы зайти под другим именем, заполните форму ниже. Для выхода из системы пройдите по <a href="/logout">ссылке</a>.</div>
+    {% endif %}
+
+    {% if not login_successful %}
+        <form action="login" method="POST">
+        <input class="form-control" type="text" name="username" id="username" placeholder="username"></input>
+        <input class="form-control"  type="password" name="pw" id="pw" placeholder="password"></input>
+        <input class="btn btn-default" type="submit" name="submit"></input>
+        </form>
+    {% endif %}
+{% endblock body %}

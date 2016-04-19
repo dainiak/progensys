@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Результаты теста {{ test }}{% endblock %}
+{% block mathjax_include %}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/tpbeta.css">
+{% endblock head %}
+
+{% block body %}
+    <div style="width: 500px">
+    <table id="mainTable" class="table table-striped">
+        <thead><tr><th>Студент</th>{% for p in problem_labels %}<th>{{ p }}</th>{% endfor %}</tr></thead>
+        <tr class="marks-row">
+            <td class="static-cell">{{ name }}</td>
+            {% for m in marks %}<td>{{ m }}</td>{% endfor %}
+        </tr>
+    </table>
+    </div>
+{% endblock body %}

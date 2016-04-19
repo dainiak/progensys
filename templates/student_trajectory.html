@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Результаты относительно траектории{% endblock %}
+{% block mathjax_include %}{% endblock %}
+
+{% block body %}
+    <script>
+        function sendForReview(pid,bid){
+            var dataToSend = {};
+            dataToSend['user'] = {{user}};
+            dataToSend['problem'] = pid;
+            dataToSend['action'] = 'SEND_FOR_REVIEW';
+            $.ajax({
+                url: '{{ url_for("review_interface") }}',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('#'+bid).text(response.result).attr('disabled','disabled');
+                }
+            });
+        }
+    </script>
+
+    <table class="table">
+    <thead><th>Тема</th><th>Результат</th><th>Задача, закрывшая тему</th><th>Комментарии</th></thead>
+    <tbody>
+    {% for r in results %}
+    <tr>
+        <td>{{ r.topic }}</td>
+        <td>{{ r.result }}</td>
+        <td>{% if r.witness %}<a href="{{ url_for('show_problem', problem_id=r['witness']) }}">{{ r.witness }}</a>{% endif %}{% if r.result == '◩' %}
+        <button class="btn btn-default" id="{{ loop.index }}" onclick="sendForReview({{r.witness}},'{{ loop.index }}')">Послать на проверку / запросить статус отправленного ранее запроса</button>
+        {% endif %}</td><td>{{ r.comment }}</td></tr>
+    {% endfor %}
+    </tbody>
+    </table>
+{% endblock body %}

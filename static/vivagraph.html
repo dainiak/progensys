@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+.node {
+stroke: #fff;
+stroke-width: 1.5px;
+}
+
+.link {
+stroke: #999;
+stroke-opacity: .6;
+}
+</style>
+
+<script type="text/x-mathjax-config">
+MathJax.Ajax.config.path['Contrib'] = '//cdn.mathjax.org/mathjax/contrib';
+
+MathJax.Hub.Config({
+    messageStyle: 'none',
+	showMathMenu: false,
+	showMathMenuMSIE: false,
+	showProcessingMessages: false,
+	skipStartupTypeset: true,
+    extensions: [
+    	'tex2jax.js'
+    ],
+	jax: [
+		'input/TeX',
+		'output/SVG'
+	],
+    tex2jax: {
+        inlineMath: [['$','$'], ['\\(','\\)']],
+        displayMath: [['$$','$$'], ['\\[','\\]']],
+        skipTags: ['script','noscript','style'],
+    	processEnvironments: false,
+    	preview: 'none'
+    },
+    TeX: {
+        extensions: [
+            'AMSmath.js',
+            'AMSsymbols.js',
+            'HTML.js',
+            '[Contrib]/xyjax/xypic.js',
+            '[Contrib]/img/img.js',
+            '[Contrib]/counters/counters.js',
+            '[Contrib]/forloop/forloop.js',
+            '[Contrib]/forminput/forminput.js'
+        ],
+		Macros: {
+			bbA: '{\\mathbb{A}}',
+			bbB: '{\\mathbb{B}}',
+			bbF: '{\\mathbb{F}}',
+			bbN: '{\\mathbb{N}}',
+			bbP: '{\\mathbb{P}}',
+			bbQ: '{\\mathbb{Q}}',
+			bbR: '{\\mathbb{R}}',
+			bbZ: '{\\mathbb{Z}}',
+
+			calA: '{\\mathcal{A}}',
+			calB: '{\\mathcal{B}}',
+			calC: '{\\mathcal{C}}',
+			calD: '{\\mathcal{D}}',
+			calF: '{\\mathcal{F}}',
+			calG: '{\\mathcal{G}}',
+			calI: '{\\mathcal{I}}',
+			calK: '{\\mathcal{K}}',
+			calM: '{\\mathcal{M}}',
+			calN: '{\\mathcal{N}}',
+			calO: '{\\mathcal{O}}',
+			calR: '{\\mathcal{R}}',
+			calS: '{\\mathcal{S}}',
+
+			bfA: '{\\mathbf{A}}',
+			bfa: '{\\mathbf{a}}',
+			bfb: '{\\mathbf{b}}',
+			bfc: '{\\mathbf{c}}',
+			bfe: '{\\mathbf{e}}',
+			bfw: '{\\mathbf{w}}',
+			bfx: '{\\mathbf{x}}',
+			bfy: '{\\mathbf{y}}',
+			bfz: '{\\mathbf{z}}',
+
+			floor: ['{\\left\\lfloor #1 \\right\\rfloor}', 1],
+			ceil: ['{\\left\\lceil #1 \\right\\rceil}', 1],
+			'const': '{\\mathrm{const}}',
+
+			le: '\\leqslant',
+			ge: '\\geqslant',
+			hat: '\\widehat',
+			emptyset: '\\varnothing',
+			epsilon: '\\varepsilon'
+		}
+	}
+});
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+</head><body>
+<script>
+
+
+d3.json("miserables.json", function(error, graph) {
+    if (error)
+        throw error;
+
+    var width = 200,
+    height = 200;
+
+    var color = d3.scale.category20();
+
+    var force = d3.layout.force()
+        .charge(-100)
+        .linkDistance(width/3)
+        .size([width, height]);
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    force
+        .nodes(graph.nodes)
+        .links(graph.links)
+        .start();
+
+    var link = svg.selectAll(".link")
+    .data(graph.links)
+    .enter().append("line")
+    .attr("class", "link")
+    .style("stroke-width", function(d) { return Math.sqrt(d.value); });
+
+    MathJax.Hub.Register.MessageHook("New Math", function (message) {
+        var texDiv = document.querySelector('#'+message[1]).parentNode;
+        if(texDiv.querySelector('svg') && texDiv.context){
+            texDiv.context.appendChild(texDiv.querySelector('svg'));
+            texDiv.remove();
+        }
+    });
+    // Create the groups under svg
+    var gnodes = svg.selectAll('g.gnode')
+        .data(graph.nodes)
+        .enter()
+        .append('g')
+        .classed('gnode', true)
+        .each( function(d, i){
+            var texDiv = d3.select('body').append('div')
+                //.style({visibility: 'hidden', position: 'absolute'})
+                .text('\\('+d.name+'\\)');
+            texDiv.node().context = this;
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, texDiv]);
+        });
+
+    // Add one circle in each group
+    var node = gnodes.append("circle")
+    .attr("class", "node")
+    .attr("r", 5)
+    .style("fill", function(d) { return color(d.group); })
+    .call(force.drag);
+
+    force.on("tick", function() {
+        // Update the links
+        link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+        // Translate the groups
+        gnodes.attr("transform", function(d) {
+                return 'translate(' + [d.x, d.y] + ')';
+            });
+    });
+});
+</script>
+
+</body></html>

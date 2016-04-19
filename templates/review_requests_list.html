@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Список пользователей{% endblock %}
+{% block head %}
+    <script>
+        function takeForReview(uid,pid,bid){
+            var dataToSend = {};
+            dataToSend['user'] = uid;
+            dataToSend['problem'] = pid;
+            dataToSend['action'] = 'TAKE_FOR_REVIEW';
+            $.ajax({
+                url: '{{ url_for("review_interface") }}',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('#reviewer'+bid).text(response.reviewer);
+                    $('#'+bid).text(response.result).attr('disabled','disabled');
+                    $('#'+bid).after(
+                        '<button class="btn" id="del' + bid + '" onclick="deleteRequest(' + uid + ',' + pid + ',' + bid + ')">Удалить запрос</button>' +
+                        '<button class="btn" id="acc' + bid + '" onclick="acceptSolution(' + uid + ',' + pid + ',' + bid + ')">Засчитать решение</button>'
+                    );
+                }
+            });
+        }
+        function deleteRequest(uid,pid,bid){
+            var dataToSend = {};
+            dataToSend['user'] = uid;
+            dataToSend['problem'] = pid;
+            dataToSend['action'] = 'DELETE_REQUEST';
+            $.ajax({
+                url: '{{ url_for("review_interface") }}',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('#del'+bid).text(response.result).attr('disabled','disabled');
+                }
+            });
+        }
+        function acceptSolution(uid,pid,bid){
+            var dataToSend = {};
+            dataToSend['user'] = uid;
+            dataToSend['problem'] = pid;
+            dataToSend['result'] = '1';
+            $.ajax({
+                url: '{{ url_for("corrections_interface") }}',
+                data: JSON.stringify(dataToSend),
+                contentType: 'application/json',
+                type: 'POST',
+                success: function(response) {
+                    $('#acc'+bid).text(response.result).attr('disabled','disabled');
+                    deleteRequest(uid,pid,bid);
+                }
+            });
+        }
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <table class="table table-striped">
+    <thead><th>Пользователь</th><th>Задача</th><th>Проверяющий</th><th>Статус</th><th>Действия</th></thead>
+    <tbody>
+    {% for i in items %}
+    <tr>
+        <td><a href="{{ i.url }}" target="_blank">{{ i.username }}</a></td>
+        <td>{{ i.problem }}</td>
+        <td id="reviewer{{ loop.index }}">{{ i.reviewer }}</td>
+        <td>{{ i.state }}</td>
+        <td>{% if not i.reviewer %}
+            <button class="btn" id="{{ loop.index }}" onclick="takeForReview({{ i.user_id }},{{ i.problem }},{{ loop.index }})">Взять на проверку</button>
+        {% else %}
+            <button class="btn" id="del{{ loop.index }}" onclick="deleteRequest({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Удалить запрос</button>
+            <button class="btn" id="acc{{ loop.index }}" onclick="acceptSolution({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Засчитать решение</button>
+        {% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+{% endblock body %}

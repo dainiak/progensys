@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Список пользователей{% endblock %}
+{% block head %}
+    <script>
+    function passwordRecovery( userId ) {
+        $('span#result'+userId.toString()).text("");
+        $.ajax({
+            url: "{{ url_for('recover_password') }}",
+            data: JSON.stringify({ user_id : userId }),
+            contentType: 'application/json',
+            type: 'POST',
+            success: function(response) {
+                $('span#result'+userId.toString()).text(response.result);
+            }
+        });
+    }
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <table class="table table-striped">
+    <thead><th>ФИО</th><th>username</th><th>email</th><th>Восстановление пароля</th></thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+        <td>{{ u.name }}</td>
+        <td><a href="{{ url_for('trajectory_progress') }}?user={{ u.id }}">{{ u.username }}</a></td>
+        <td>{{ u.email }}</td>
+        <td><button class="btn" onclick="passwordRecovery({{ u.id }})">Отправить письмо</button><span class="badge" id="result{{ u.id }}"></span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+{% endblock body %}
