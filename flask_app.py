@@ -112,27 +112,29 @@ from datetime import datetime, date
 from collections import defaultdict
 import random
 import flask.ext.login as flask_login
+from tpbeta_security import *
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://dainiak:2d4ca0139@dainiak.mysql.pythonanywhere-services.com/dainiak$ds2015'
+app.secret_key = tpbeta_app_secret_key
+
+app.config['SQLALCHEMY_DATABASE_URI'] = tpbeta_sqlalchemy_db_uri
 app.config['SQLALCHEMY_POOL_RECYCLE'] = 280
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
+app.config['MAIL_SERVER'] = tpbeta_mail_server
+app.config['MAIL_PORT'] = tpbeta_mail_port
+app.config['MAIL_USERNAME'] = tpbeta_mail_username
+app.config['MAIL_PASSWORD'] = tpbeta_mail_password
+app.config['MAIL_DEFAULT_SENDER'] = tpbeta_mail_default_sender
 app.config['MAIL_USE_SSL'] = True
-app.config['MAIL_USERNAME'] = 'dainiak@dainiak.com'
-app.config['MAIL_PASSWORD'] = 'porkupin316vamos314'
-app.config['MAIL_DEFAULT_SENDER'] = 'dainiak@dainiak.com'
 
 app.debug = True
 db = SQLAlchemy(app)
 mail = Mail(app)
 
-app.secret_key = 'd054cd0df7f0e97f9f733c90cc54ea29'
 login_manager = flask_login.LoginManager()
 login_manager.init_app(app)
-teachers = ['dainiak','kazennova','glibichukaa']
+teachers = tpbeta_teacher_usernames
 
 
 
@@ -251,7 +253,7 @@ def request_loader(request):
 @app.route('/add_user', methods=['GET','POST'])
 @flask_login.login_required
 def calc_md5():
-    if flask_login.current_user.username != 'dainiak':
+    if flask_login.current_user.username != tpbeta_superuser_username:
         return 'Only supervisor can add users.'
 
     if request.method == 'GET':
@@ -643,7 +645,7 @@ def view_test(group_number, test_number):
 
     max_problems = 5
     log_info = ''
-    # if flask_login.current_user.username == 'dainiak':
+    # if flask_login.current_user.username == tpbeta_superuser_username:
     #     log_info = '; '.join(str(cid) + ' : ' +  ','.join(str(t) for t in clones[cid]) for cid in clones)
 
     problem_sets = dict()
@@ -723,7 +725,7 @@ def create_test(group_number):
                 clones[cid].add(p.id)
 
     log_info = ''
-    # if flask_login.current_user.username == 'dainiak':
+    # if flask_login.current_user.username == tpbeta_superuser_username:
     #     log_info = '; '.join(str(cid) + ' : ' +  ','.join(str(t) for t in clones[cid]) for cid in clones)
 
     problem_sets = dict()
@@ -884,7 +886,7 @@ def trajectory_progress():
 @app.route('/users')
 @flask_login.login_required
 def show_user_list():
-    if flask_login.current_user.username != 'dainiak':
+    if flask_login.current_user.username != tpbeta_superuser_username:
         return 'Login error'
     users = User.query.all()
     for u in users:
@@ -894,7 +896,7 @@ def show_user_list():
 @app.route('/recover_password', methods=['POST'])
 @flask_login.login_required
 def recover_password():
-    if flask_login.current_user.username != 'dainiak':
+    if flask_login.current_user.username != tpbeta_superuser_username:
         return jsonify(result = 'Login error')
 
     if 'user_id' not in request.json:
