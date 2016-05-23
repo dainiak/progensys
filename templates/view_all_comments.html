@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Список комментариев{% endblock %}
+
+{% block body %}
+    <table class="table table-striped">
+    <thead><th>Дата</th><th>Пользователь</th><th>Задача</th><th>Комментарий</th></thead>
+    <tbody>
+    {% for c in comments %}
+    <tr>
+        <td>{{ c.datetime|safe }}</td>
+        <td><a href="{{ url_for('trajectory_progress') }}?user={{ c.author_id }}">{{ c.author_username }}</a></td>
+        <td><a href="{{ url_for('show_problem', problem_id=c.problem_id) }}">{{ c.problem_id }}</a></td>
+        <td>{{ c.text }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+{% endblock body %}
