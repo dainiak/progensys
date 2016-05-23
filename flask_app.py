@@ -793,30 +793,29 @@ def learner_dashboard():
 @app.route('/learnerdashboard/test/<int:test_number>', methods = ['GET'])
 @flask_login.login_required
 def test_results(test_number):
-    username = flask_login.current_user.username
     user_id = flask_login.current_user.id
     if ('user' in request.args) and flask_login.current_user.username in teachers:
         user_id = int(request.args['user'])
 
     log = TestLog.query.filter_by(user = user_id, test_number = test_number).first()
+    if not log:
+        return "Не найдена информация о тесте"
     test_history = History.query.filter_by(user = user_id, comment = 'TEST{0}'.format(test_number)).all()
     result_translator = {'SEEN' : '∅', 'TRIED' : '□', 'ALMOST' : '◩', 'SUCCESS' : '■'}
     u_history = {h.problem: result_translator[h.event] for h in test_history if h.event in result_translator}
     problem_ids = list(map(int, log.problems.split(',')))
-    problems = problem_ids[:]
-    for i, p in enumerate(problems):
-        if p in u_history:
-            problems[i] = u_history[p]
-        else:
-            problems[i] = ''
+    marks = problem_ids[:]
+    for i, id in enumerate(problem_ids):
+        marks[i] = {
+            'result': u_history.get(id, ''),
+            'id': id
+        }
 
     return render_template(
         'student_test_results.html',
-        name = username,
+        name = db.session.query(User.username).filter(User.id == user_id).first()[0],
         test = test_number,
-        marks = problems,
-        problem_labels = list(range(1, len(problems)+1)),
-        problem_ids = problem_ids
+        marks = marks
     )
 
 @app.route('/learnerdashboard/trajectory', methods=['GET'])

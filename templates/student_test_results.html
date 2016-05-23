@@ -9,15 +9,12 @@
 {% block body %}
     <div style="width: 500px">
     <table id="mainTable" class="table table-striped">
-        <thead><tr><th>Студент</th>{% for p in problem_labels %}<th>{{ p }}</th>{% endfor %}</tr></thead>
-        <tr class="marks-row">
-            <td class="static-cell">Номер</td>
-            {% for p in problem_ids %}<td><a href="{{ url_for('show_problem', problem_id=p) }}">{{ p }}</a></td>{% endfor %}
-        </tr>
-        <tr class="marks-row">
-            <td class="static-cell">{{ name }}</td>
-            {% for m in marks %}<td>{{ m }}</td>{% endfor %}
-        </tr>
+        <thead><tr><th>Номер задачи</th><th>ID задачи</th><th>Результат</th></thead>
+        <tbody>
+        {% for p in marks %}
+        <tr><td class="static-cell">{{ loop.index }}</td><td class="static-cell"><a href="{{ url_for('show_problem', problem_id=p.id) }}">{{ p.id }}</a></td><td class="static-cell">{{ p.result }}</td></tr>
+        {% endfor %}
+        </tbody>
     </table>
     </div>
 {% endblock body %}
