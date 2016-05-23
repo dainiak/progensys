@@ -11,6 +11,10 @@
     <table id="mainTable" class="table table-striped">
         <thead><tr><th>Студент</th>{% for p in problem_labels %}<th>{{ p }}</th>{% endfor %}</tr></thead>
         <tr class="marks-row">
+            <td class="static-cell">Номер</td>
+            {% for p in problem_ids %}<td><a href="{{ url_for('show_problem', problem_id=p) }}">{{ p }}</a></td>{% endfor %}
+        </tr>
+        <tr class="marks-row">
             <td class="static-cell">{{ name }}</td>
             {% for m in marks %}<td>{{ m }}</td>{% endfor %}
         </tr>

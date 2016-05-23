@@ -802,7 +802,8 @@ def test_results(test_number):
     test_history = History.query.filter_by(user = user_id, comment = 'TEST{0}'.format(test_number)).all()
     result_translator = {'SEEN' : '∅', 'TRIED' : '□', 'ALMOST' : '◩', 'SUCCESS' : '■'}
     u_history = {h.problem: result_translator[h.event] for h in test_history if h.event in result_translator}
-    problems = list(map(int, log.problems.split(',')))
+    problem_ids = list(map(int, log.problems.split(',')))
+    problems = problem_ids[:]
     for i, p in enumerate(problems):
         if p in u_history:
             problems[i] = u_history[p]
@@ -814,7 +815,9 @@ def test_results(test_number):
         name = username,
         test = test_number,
         marks = problems,
-        problem_labels = list(range(1, len(problems)+1)))
+        problem_labels = list(range(1, len(problems)+1)),
+        problem_ids = problem_ids
+    )
 
 @app.route('/learnerdashboard/trajectory', methods=['GET'])
 @flask_login.login_required
