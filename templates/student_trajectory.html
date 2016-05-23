@@ -4,11 +4,11 @@
 
 {% block body %}
     <script>
-        function sendForReview(pid,bid){
+        function sendForReviewAjax(pid,bid,action){
             var dataToSend = {};
             dataToSend['user'] = {{user}};
             dataToSend['problem'] = pid;
-            dataToSend['action'] = 'SEND_FOR_REVIEW';
+            dataToSend['action'] = action;
             $.ajax({
                 url: '{{ url_for("review_interface") }}',
                 data: JSON.stringify(dataToSend),
@@ -19,18 +19,42 @@
                 }
             });
         }
+
+        function sendForReview(pid,bid){
+            if (confirm("Подтверждаете ли Вы, что ознакомились с требованиями к оформлению решений по ссылке https://goo.gl/FhyJJm")) {
+                sendForReviewAjax(pid,bid,'SEND_FOR_REVIEW');
+            }
+        }
+        function resendForReview(pid,bid){
+            if (confirm("Подтверждаете ли Вы, что ознакомились с требованиями к оформлению решений по ссылке https://goo.gl/FhyJJm")) {
+                sendForReviewAjax(pid,bid,'RESEND_FOR_REVIEW');
+            }
+        }
     </script>
 
     <table class="table">
-    <thead><th>Тема</th><th>Результат</th><th>Задача, закрывшая тему</th><th>Комментарии</th></thead>
+    <thead><th>Тема</th><th>Уровень</th><th>Результат</th><th>Задача,<br>закрывшая тему</th><th>Действия</th><th>Комментарии</th></thead>
     <tbody>
     {% for r in results %}
     <tr>
         <td>{{ r.topic }}</td>
+        <td>{{ r.level }}</td>
         <td>{{ r.result }}</td>
-        <td>{% if r.witness %}<a href="{{ url_for('show_problem', problem_id=r['witness']) }}">{{ r.witness }}</a>{% endif %}{% if r.result == '◩' %}
-        <button class="btn btn-default" id="{{ loop.index }}" onclick="sendForReview({{r.witness}},'{{ loop.index }}')">Послать на проверку / запросить статус отправленного ранее запроса</button>
-        {% endif %}</td><td>{{ r.comment }}</td></tr>
+        <td>{% if r.witness %}<a href="{{ url_for('show_problem', problem_id=r['witness']) }}">{{ r.witness }}</a>{% endif %}</td><td>
+            {% if r.result == '◩' %}
+                {% if r.status == 'REVIEW_NOT_REQUESTED' %}
+                <button class="btn btn-default" id="{{ loop.index }}" onclick="sendForReview({{r.witness}},'{{ loop.index }}')">Послать на проверку</button>
+                {% endif %}
+                {% if r.status == 'REWORK_REQUIRED' %}
+                <button class="btn btn-default" id="{{ loop.index }}" onclick="resendForReview({{r.witness}},'{{ loop.index }}')">Послать на перепроверку</button>
+                {% endif %}
+                {% if r.status == 'REVIEWER_ASSIGNED' %}
+                Ждите письма от проверяющего.
+                {% endif %}
+                {% if r.status == 'REVIEW_REQUEST_RESENT' %}
+                Ждите письма от проверяющего.
+                {% endif %}
+            {% endif %}</td><td>{{ r.comment|safe }}</td></tr>
     {% endfor %}
     </tbody>
     </table>

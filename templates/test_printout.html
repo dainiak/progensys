@@ -43,16 +43,16 @@
     {% endif %}
 
     {% for uid, ups in problems.items() %}
-    <div class="variant" data-uid="{{ uid }}" data-pids="{% for i in range(problem_qty[uid]) %}{% if i>0 %},{% endif %}{{ ups[i][0] }}{% endfor %}">
+    <div class="variant" data-uid="{{ uid }}" data-pids="{% for p in ups %}{% if not loop.first %},{% endif %}{{ p.id }}{% endfor %}">
         <h1>Студент <em>{{ users[uid] }}</em>, группа {{ group }}, дата <span class='header-date'>{{ date }}</span></h1>
         <table>
-            <tr>{% for i in range(problem_qty[uid]) %}<td>{{ i+1 }}<sub>({{ ups[i][0] }})</sub></td>{% endfor %}</tr>
-            <tr>{% for i in range(problem_qty[uid]) %}<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>{% endfor %}</tr>
+            <tr>{% for p in ups %}<td>{{ loop.index }}<sub>({{ p.id }})</sub></td>{% endfor %}</tr>
+            <tr>{% for i in range(ups|length) %}<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>{% endfor %}</tr>
         </table>
         <ol>
             {% for p in ups %}
-            <li><a class="dontprint badge" href="{{ url_for('edit_problem', problem_id=p[0]) }}">(ID {{ p[0] }})</a>
-            {{ p[1]|safe }}
+            <li><a class="dontprint badge" href="{{ url_for('edit_problem', problem_id=p.id) }}">(ID {{ p.id }})</a>
+            {{ p.text|safe }}
             </li>
             {% endfor %}
         </ol>

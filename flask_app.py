@@ -91,11 +91,11 @@ def process_xypic_macros(text):
         .replace(r'\vrtx', r'*[o]{\circ}')
 
 def latex_to_html(text, variation = None):
+    text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)
     text = escape(text)
     text = re.compile(r'\\emph{(.*?)}', re.DOTALL).sub(lambda m: r'<em>{0}</em>'.format(m.group(1)), text)
     text = re.compile(r'\\textit{(.*?)}', re.DOTALL).sub(lambda m: r'<em>{0}</em>'.format(m.group(1)), text)
     text = re.compile(r'\\textbf{(.*?)}', re.DOTALL).sub(lambda m: r'<strong>{0}</strong>'.format(m.group(1)), text)
-    text = re.compile(r'%.*$', re.MULTILINE).sub('', text)
     text = re.sub(r'\\,', ' ', text).replace('---','—').replace('--','–').replace('~','&nbsp;')
 
     text = process_latex_lists(text)
@@ -112,6 +112,8 @@ from datetime import datetime, date
 from collections import defaultdict
 import random
 import flask.ext.login as flask_login
+
+# Security sensitive constants are imported from a file not being synced with github
 from tpbeta_security import *
 
 app = Flask(__name__)
@@ -189,6 +191,7 @@ class ProblemComment(db.Model):
     datetime = db.Column(db.DateTime, nullable = False)
     text = db.Column(db.UnicodeText)
     author = db.Column(db.Integer, db.ForeignKey('user.id'), nullable = False)
+    in_reply_to = db.Column(db.Integer)
 
 class Problem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -205,6 +208,7 @@ class Problem(db.Model):
 class Topic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     topic = db.Column(db.Text)
+    level = db.Column(db.Integer)
     parent = db.Column(db.Integer)
     connected_topics = db.Column(db.Text)
     comment = db.Column(db.Text)
@@ -435,14 +439,12 @@ def show_problem(problem_id):
         comments = ProblemComment.query.filter(ProblemComment.problem_id==problem_id, ProblemComment.author.in_([1,1049,1050]+[flask_login.current_user.id])).all()
 
     comments_processed = []
-    for c in comments:
+    for c in sorted(comments, key=lambda x: x.datetime):
         comments_processed.append({
             'text' : c.text,
             'author' : db.session.query(User.username).filter(User.id == c.author).first()[0],
-            'datetime' : c.datetime.isoformat()
+            'datetime' : c.datetime.isoformat().replace('T', ' ')
         })
-
-    comments_processed.sort(key=lambda x: x['datetime'])
 
     return render_template('single_problem.html',
         problem_statement = latex_to_html(problem.statement, variation),
@@ -474,7 +476,9 @@ def show_problems(topic):
     problems = None
     if topic == 'all':
         problems = Problem.query.all()
+        show_filter_prompt = True
     else:
+        show_filter_prompt = False
         if not topic.isdecimal():
             topic = db.session.query(Topic.id).filter(Topic.topic == topic).first()
             if topic:
@@ -501,10 +505,6 @@ def show_problems(topic):
             'id' : p.id,
             'statement' : latex_to_html(p.statement),
             'clones' : p.clones })
-
-    show_filter_prompt = False
-    if topic == 'all':
-        show_filter_prompt = True
 
     return render_template(
         'multiple_problems.html',
@@ -642,38 +642,32 @@ def view_test(group_number, test_number):
 
     test_date = testlog_items[0].datetime
 
-
-    max_problems = 5
     log_info = ''
     # if flask_login.current_user.username == tpbeta_superuser_username:
     #     log_info = '; '.join(str(cid) + ' : ' +  ','.join(str(t) for t in clones[cid]) for cid in clones)
 
     problem_sets = dict()
-    problem_qty = dict()
 
     for item in testlog_items:
         user_id = item.user
         user_problem_ids = list(map(int, item.problems.split(',')))
         user_problems = {p.id : p.statement for p in Problem.query.filter(Problem.id.in_(user_problem_ids)).all()}
-        problem_sets[user_id] = [ [id, latex_to_html(user_problems[id])] for id in user_problem_ids ]
-        problem_qty[user_id] = len(problem_sets[user_id])
+        problem_sets[user_id] = [ {'id': id, 'text': latex_to_html(user_problems[id])} for id in user_problem_ids ]
 
     return render_template(
         'test_printout.html',
         problems = problem_sets,
-        problem_qty = problem_qty,
         users = users,
         group = group_number,
         suggested_test_number = test_number,
         date = test_date.isoformat()[:10],
-        max_problems = max_problems,
         log_info = log_info,
         view_only = True)
 
 @app.route('/test/create/<int:group_number>', methods=['GET','POST'])
 @flask_login.login_required
 def create_test(group_number):
-    max_problems = 5
+    max_problems = int(request.args.get('max', 5))
     current_variation = defaultdict(int)
 
     if flask_login.current_user.username not in teachers:
@@ -729,7 +723,6 @@ def create_test(group_number):
     #     log_info = '; '.join(str(cid) + ' : ' +  ','.join(str(t) for t in clones[cid]) for cid in clones)
 
     problem_sets = dict()
-    problem_qty = dict()
 
     for user_id in users:
         user_history = { i: -1 for i in problem_ids }
@@ -769,14 +762,15 @@ def create_test(group_number):
                         break
         problem_sets[user_id] = []
         for p in problems_for_user[:max_problems]:
-            problem_sets[user_id].append([ p.id, latex_to_html(p.statement, variation=current_variation[p.id]) ])
+            problem_sets[user_id].append({
+                'id': p.id,
+                'text': latex_to_html(p.statement, variation=current_variation[p.id])
+            })
             current_variation[p.id] += 1
-        problem_qty[user_id] = len(problem_sets[user_id])
 
     return render_template(
         'test_printout.html',
         problems = problem_sets,
-        problem_qty = problem_qty,
         users = users,
         group = group_number,
         suggested_test_number = suggested_test_number,
@@ -831,7 +825,9 @@ def trajectory_progress():
 
     event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
     number_to_square = {-1 : '□', 0 : '□', 1 : '□', 2 : '◩', 3 : '■'}
-    topic_names = { t.id: t.topic for t in Topic.query.all() }
+    all_topics = Topic.query.all()
+    topic_names = { t.id: t.topic for t in all_topics }
+    topic_levels = { t.id: t.level for t in all_topics }
     trajectory_list = Trajectory.query.first().topics.split('|')
     trajectory_topics = list(set(trajectory_list))
     trajectory_list = list(map(int, trajectory_list))
@@ -849,7 +845,10 @@ def trajectory_progress():
 
     user_history_items = History.query.filter(History.user == user_id, History.problem.in_(problem_ids))
     user_history = { i: -1 for i in problem_ids }
+    review_requests = dict()
     for h in user_history_items:
+        if h.event == 'REVIEW_REQUEST':
+            review_requests[h.problem] = h
         if h.event in event_to_number:
             user_history[h.problem] = max(user_history[h.problem], event_to_number[h.event])
     trajectory_results = [0] * len(trajectory_list)
@@ -868,14 +867,36 @@ def trajectory_progress():
     for i in range(len(trajectory_list)):
         r = {
             'topic': topic_names[trajectory_list[i]],
+            'level': topic_levels[trajectory_list[i]],
             'result' : number_to_square[trajectory_results[i]],
-            'witness' : result_witnesses[i]
+            'witness' : result_witnesses[i],
+            'status' : ''
         }
         if trajectory_results[i] == 2:
-            h = db.session.query(History.datetime).filter(History.user == user_id, History.problem == result_witnesses[i], History.event == 'ALMOST').first()
+            problem_id = result_witnesses[i]
+            h = db.session.query(History.datetime).filter(History.user == user_id, History.problem == problem_id, History.event == 'ALMOST').first()
             if h and h[0]:
                 delta = datetime.now() - h[0]
-                r['comment'] = 'На сдачу дорешки осталось {0} дней'.format(21 - delta.days)
+            if problem_id in review_requests:
+                review_request = review_requests[problem_id]
+                if review_request.comment and len(review_request.comment) > 0:
+                    tokens = review_request.comment.split('|', maxsplit=2)
+                    reviewer = tokens[0]
+                    if len(tokens) == 1:
+                        r['comment'] = 'Ваше решение на проверке у {0}'.format(reviewer)
+                        r['status'] = 'REVIEWER_ASSIGNED'
+                    else:
+                        r['status'] = tokens[1]
+                        if len(tokens) == 3:
+                            r['comment'] = tokens[2]
+                        else:
+                            r['comment'] = 'Ваше решение на проверке у {0}'.format(reviewer)
+                else:
+                    r['comment'] = 'Запрос на проверку отправлен, но проверяющий ещё не назначен.'
+            else:
+                r['comment'] = 'Вы ещё не отправляли запрос на проверку этой задачи.<br>На сдачу дорешки осталось {0} дней'.format(21 - delta.days)
+                r['status'] = 'REVIEW_NOT_REQUESTED'
+
         results.append(r)
 
     return render_template('student_trajectory.html',
@@ -886,12 +907,15 @@ def trajectory_progress():
 @app.route('/users')
 @flask_login.login_required
 def show_user_list():
-    if flask_login.current_user.username != tpbeta_superuser_username:
-        return 'Login error'
+    if flask_login.current_user.username not in teachers:
+        return "You need to be logged in as a teacher to view userlist"
     users = User.query.all()
     for u in users:
         u.name = u.lastname + ' ' + u.firstname
-    return render_template('user_list.html', users = sorted(users, key=lambda u: u.name))
+    return render_template(
+        'user_list.html',
+        users = sorted(users, key=lambda u: u.name),
+        superuser = (flask_login.current_user.username == tpbeta_superuser_username))
 
 @app.route('/recover_password', methods=['POST'])
 @flask_login.login_required
@@ -994,11 +1018,7 @@ def review_interface():
         if action == 'SEND_FOR_REVIEW':
             h = History.query.filter_by(user=user, problem=problem, event='REVIEW_REQUEST').first()
             if h:
-                if h.comment:
-                    reviewer = h.comment.split('|')[0]
-                    if reviewer in teachers:
-                        return jsonify(result = 'Ваше решение на проверке у {0}. Ждите письма от проверяющего.'.format(reviewer))
-                return jsonify(result = 'Запрос на проверку отправлен, но проверяющий ещё не назначен.')
+                return jsonify(result = 'Запрос на проверку уже был отправлен ранее.')
             h = History()
             h.datetime = datetime.now()
             h.user = user
@@ -1006,7 +1026,16 @@ def review_interface():
             h.event = 'REVIEW_REQUEST'
             db.session.add(h)
             db.session.commit()
-            return jsonify(result = 'Отправлен запрос на проверку решения в ShareLatex')
+            return jsonify(result = 'Запрос отправлен')
+        elif action == 'RESEND_FOR_REVIEW':
+            h = History.query.filter_by(user=user, problem=problem, event='REVIEW_REQUEST').first()
+            if not h:
+                return jsonify(result = 'Запрос на проверку ранее не отправлялся.')
+            tokens = h.comment.split('|')
+            tokens[1] = 'REVIEW_REQUEST_RESENT'
+            h.comment = '|'.join(tokens[:2])
+            db.session.commit()
+            return jsonify(result = 'Запрос отправлен')
         elif action == 'TAKE_FOR_REVIEW' and flask_login.current_user.username in teachers:
             h = History.query.filter_by(user=user, problem=problem, event='REVIEW_REQUEST').first()
             h.comment = flask_login.current_user.username
@@ -1017,6 +1046,34 @@ def review_interface():
             db.session.delete(h)
             db.session.commit()
             return jsonify(result = 'Запрос на проверку закрыт')
+        elif action == 'SEND_FOR_REWORK' and flask_login.current_user.username in teachers:
+            h = History.query.filter_by(user=user, problem=problem, event='REVIEW_REQUEST').first()
+            if 'comment' in request.json:
+                comment = request.json['comment']
+            else:
+                comment = 'Проверяющий {0} затребовал доработку решения'.format(flask_login.current_user.username)
+            h.comment = '{0}|{1}|{2}'.format(flask_login.current_user.username, 'REWORK_REQUIRED', comment)
+            db.session.commit()
+            return jsonify(result = 'Запрос на доработку отправлен')
+        elif action == 'REMOVE_EXPIRED':
+            if flask_login.current_user.username != tpbeta_superuser_username:
+                return jsonify(result = 'Только суперпользователь может выполнять этот запрос')
+            n_deleted = 0
+            n_close_to_expiration = 0
+            for i in History.query.filter_by(event='ALMOST').all():
+                if db.session.query(History.id).filter(History.user==i.user, History.problem==i.problem, History.event.in_(['SUCCESS','REVIEW_REQUEST'])).first():
+                    continue
+                if not i.datetime:
+                    continue
+                delta = datetime.now() - i.datetime
+                if delta.days <= 21:
+                    continue
+                if delta.days > 18:
+                    n_close_to_expiration += 1
+                db.session.delete(i)
+                n_deleted += 1
+            db.session.commit()
+            return jsonify(result = 'Удалено {0} просроченных заданий; {1} заданий близки к просроченным'.format(n_deleted, n_close_to_expiration))
 
     if flask_login.current_user.username not in teachers:
         return "You need to be logged in as a teacher to mark corrections"
@@ -1026,10 +1083,17 @@ def review_interface():
         username = db.session.query(User.username).filter(User.id == h.user).first()[0]
         reviewer = ''
         state = 'Ожидает проверки с {0}'.format(h.datetime)
+        formal_state = 'PENDING'
+
         if h.comment:
-            tokens = h.comment.split('|')
+            tokens = h.comment.split('|', maxsplit=2)
             reviewer = tokens[0]
-            #state = tokens[1]
+            if len(tokens) > 1:
+                formal_state = tokens[1]
+                if formal_state == 'REWORK_REQUIRED':
+                    state = 'Находится на доработке'
+                if formal_state == 'REVIEW_REQUEST_RESENT':
+                    state = 'Студент доработал решение и отправил запрос на перепроверку'
 
         latex_project_url = db.session.query(Learner.latex_project_url).filter(Learner.user_id==h.user).first()
         if latex_project_url:
@@ -1043,9 +1107,12 @@ def review_interface():
             'user_id' : h.user,
             'problem': h.problem,
             'reviewer': reviewer,
-            'state': state
+            'state': state,
+            'formal_state' : formal_state
         })
-    return render_template('review_requests_list.html',items=items)
+    return render_template('review_requests_list.html',
+        items = items,
+        show_remove_expired_ui = (flask_login.current_user.username == tpbeta_superuser_username))
 
 
 @app.route('/topic_stats')
@@ -1072,6 +1139,33 @@ def show_topic_stats():
         })
 
     return render_template('problem_stats.html',data=data)
+
+
+@app.route('/comments')
+@flask_login.login_required
+def view_comments():
+    if flask_login.current_user.username not in teachers:
+        return 'Просматривать комментарии могут только преподаватели'
+
+    comments = ProblemComment.query.all()
+
+    comments_processed = []
+    usernames = dict()
+
+    for c in sorted(comments, key=lambda x: x.datetime, reverse=True):
+        if c.author not in usernames:
+            user_id, username = db.session.query(User.id, User.username).filter(User.id == c.author).first()
+            usernames[user_id] = username
+        comments_processed.append({
+            'text' : c.text if len(c.text) < 1000 else c.text[:1000] + '…',
+            'author_username' : usernames[c.author],
+            'author_id' : c.author,
+            'datetime' : c.datetime.isoformat().replace('T', '<br>').replace('-','&#8209;'),
+            'problem_id' : c.problem_id
+        })
+
+    return render_template('view_all_comments.html', comments = comments_processed)
+
 
 @app.route('/')
 def root():

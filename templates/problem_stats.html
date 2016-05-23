@@ -9,7 +9,7 @@
         <tr>
             <td>{{ data_item.topic }}</td>
             <td>{{ data_item.qty_in_trajectory }}</td>
-            <td><a target="_blank" href="{{ url_for('show_all_problems', topic=data_item.topic) }}">{{ data_item.num_problems }}</a></td>
+            <td><a target="_blank" href="{{ url_for('show_problems', topic=data_item.topic) }}">{{ data_item.num_problems }}</a></td>
             <td>{{ data_item.num_tries }}</td>
             <td>{{ data_item.num_successful_tries }}</td>
             <td>{{ data_item.num_clears }}</td>

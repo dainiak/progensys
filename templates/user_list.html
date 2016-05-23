@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Список пользователей{% endblock %}
 {% block head %}
+    {% if superuser %}
     <script>
     function passwordRecovery( userId ) {
         $('span#result'+userId.toString()).text("");
@@ -15,18 +16,19 @@
         });
     }
     </script>
+    {% endif %}
 {% endblock head %}
 
 {% block body %}
     <table class="table table-striped">
-    <thead><th>ФИО</th><th>username</th><th>email</th><th>Восстановление пароля</th></thead>
+    <thead><th>ФИО</th><th>username</th><th>email</th>{% if superuser %}<th>Дополнительно</th>{% endif %}</thead>
     <tbody>
     {% for u in users %}
     <tr>
         <td>{{ u.name }}</td>
         <td><a href="{{ url_for('trajectory_progress') }}?user={{ u.id }}">{{ u.username }}</a></td>
         <td>{{ u.email }}</td>
-        <td><button class="btn" onclick="passwordRecovery({{ u.id }})">Отправить письмо</button><span class="badge" id="result{{ u.id }}"></span></td>
+        {% if superuser %}<td><button class="btn" onclick="passwordRecovery({{ u.id }})">Восстановить пароль</button><span class="badge" id="result{{ u.id }}"></span></td>{% endif %}
     </tr>
     {% endfor %}
     </tbody>

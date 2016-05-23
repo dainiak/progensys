@@ -6,7 +6,7 @@
     {% endif %}
 
     {% if login_successful %}
-    <div class="alert alert-success" role="alert">Вы успешно зашли в систему под именем {{ username }}</div>
+    <div class="alert alert-success" role="alert">Вы успешно зашли в систему под именем <em>{{ username }}</em>. Список доступных Вам действий можно посмотреть на <a href="/">главной странице</a>.</div>
     {% endif %}
 
     {% if already_logged %}
