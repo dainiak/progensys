@@ -1008,6 +1008,15 @@ def corrections_interface():
     data.sort( key = lambda x: usernames[x['id']] )
     return render_template('corrections.html', data=data)
 
+def notify_user(user_id, subject, body):
+    user_data = User.query.filter_by(id=user_id).first()
+    if not user_data.email:
+        return
+    message = Message(subject="Курс ДС: {}".format(subject),
+                      body="Здравствуйте, {}!\n{}".format(user_data.firstname, body),
+                      recipients=[user_data.email])
+    mail.send(msg)
+
 @app.route('/review', methods=['POST','GET'])
 @flask_login.login_required
 def review_interface():
@@ -1055,6 +1064,8 @@ def review_interface():
             else:
                 comment = 'Проверяющий {0} затребовал доработку решения'.format(flask_login.current_user.username)
             h.comment = '{0}|{1}|{2}'.format(flask_login.current_user.username, 'REWORK_REQUIRED', comment)
+            notify_user(user, "Ваше решение отправлено на доработку",
+                        "Ваша дорешка по задаче {} отправлена на доработку с комментарием: {}".format(problem, comment));
             db.session.commit()
             return jsonify(result = 'Запрос на доработку отправлен')
         elif action == 'REMOVE_EXPIRED':
