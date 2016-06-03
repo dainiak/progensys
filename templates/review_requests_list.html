@@ -107,9 +107,11 @@
         <td>{{ i.problem }}</td>
         <td id="reviewer{{ loop.index }}">{{ i.reviewer }}</td>
         <td>{{ i.state }}</td>
-        <td>{% if not i.reviewer %}
+        <td>
+        {% if i.reviewer != current_logged_user %}
             <button class="btn" id="{{ loop.index }}" onclick="takeForReview({{ i.user_id }},{{ i.problem }},{{ loop.index }})">Взять на проверку</button>
-        {% else %}
+        {% endif %}
+        {% if i.reviewer %}
             <button class="btn" id="del{{ loop.index }}" onclick="deleteRequest({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Удалить запрос</button>
             <button class="btn" id="acc{{ loop.index }}" onclick="acceptSolution({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Засчитать решение</button>
             {% if i.formal_state != 'REWORK_REQUIRED' %}

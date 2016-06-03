@@ -389,6 +389,8 @@ def edit_group_table(group_number, test_number):
 
     items = []
     for log in test_log_items:
+        if len(log.problems) == 0:
+            continue
         u = User.query.filter_by(id = log.user).first()
         result_translator = {'SEEN' : '∅', 'TRIED' : '□', 'ALMOST' : '◩', 'SUCCESS' : '■'}
         u_history = {h.problem: result_translator[h.event] for h in test_history if h.user == u.id and h.event in result_translator}
@@ -851,6 +853,10 @@ def trajectory_progress():
     for h in user_history_items:
         if h.event == 'REVIEW_REQUEST':
             review_requests[h.problem] = h
+            if h.problem not in user_history:
+                user_history[h.problem] = event_to_number['ALMOST']
+            else:
+                user_history[h.problem] = max(user_history[h.problem], event_to_number['ALMOST'])
         if h.event in event_to_number:
             user_history[h.problem] = max(user_history[h.problem], event_to_number[h.event])
     trajectory_results = [0] * len(trajectory_list)
@@ -1040,7 +1046,11 @@ def review_interface():
             return jsonify(result = 'Запрос отправлен')
         elif action == 'TAKE_FOR_REVIEW' and flask_login.current_user.username in teachers:
             h = History.query.filter_by(user=user, problem=problem, event='REVIEW_REQUEST').first()
-            h.comment = flask_login.current_user.username
+            if not h.comment or '|' not in h.comment:
+                h.comment = flask_login.current_user.username
+            else:
+                pos = h.comment.find('|')
+                h.comment = flask_login.current_user.username + h.comment[pos:]
             db.session.commit()
             return jsonify(result = 'Успешно изменён проверяющий для задачи', reviewer = flask_login.current_user.username)
         elif action == 'DELETE_REQUEST' and flask_login.current_user.username in teachers:
@@ -1114,6 +1124,7 @@ def review_interface():
         })
     return render_template('review_requests_list.html',
         items = items,
+        current_logged_user = flask_login.current_user.username,
         show_remove_expired_ui = (flask_login.current_user.username == tpbeta_superuser_username))
 
 
