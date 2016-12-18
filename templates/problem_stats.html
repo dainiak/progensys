@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
-{% block title %}Меню{% endblock %}
+{% block title %}Статистика по задачам{% endblock %}
 
 {% block body %}
 <table class="table table-striped">
-    <thead><td>Тема</td><td>#вхождений в <a target="_blank" href="{{ url_for('edit_trajectory') }}">траекторию</a></td><td>#задач по теме</td><td>#попыток</td><td>#успешных попыток</td><td>#закрывших</td></thead>
+    <thead><th>Тема</th><th>уровень</th><th>#вхождений в <a target="_blank" href="{{ url_for('edit_trajectory') }}">траекторию</a></th><th>#задач по теме</th><th>#попыток</th><th>#успешных попыток</th><th>#закрывших</th></thead>
     <tbody>
         {% for data_item in data %}
         <tr>
-            <td>{{ data_item.topic }}</td>
+            <td><a target="_blank" href="{{ url_for('show_problems', topic=data_item.topic) }}">{{ data_item.topic }}</a></td>
+            <td>{{ data_item.level }}</td>
             <td>{{ data_item.qty_in_trajectory }}</td>
             <td><a target="_blank" href="{{ url_for('show_problems', topic=data_item.topic) }}">{{ data_item.num_problems }}</a></td>
             <td>{{ data_item.num_tries }}</td>

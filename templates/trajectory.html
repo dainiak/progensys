@@ -9,11 +9,24 @@
 {% endblock head %}
 
 {% block body %}
-<div class="row grid">
+<div class="grid">
 {% for topic in topics %}
-<div class="input-group">
-  <span class="input-group-addon">&nbsp;&nbsp;</span>
-  <input type="text" class="form-control existing-topic" placeholder="тема" value="{{ topic }}">
+<div class="row">
+    <div class="col-md-5" style="padding-left: 1em">
+        <div class="input-group">
+        <span class="input-group-addon"><span class="glyphicon glyphicon-resize-vertical"></span></span>
+        <input type="text" class="form-control existing-topic topic-name" placeholder="тема" value="{{ topic.name }}">
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="input-group">
+        <span class="input-group-addon"><span class="glyphicon glyphicon-education"></span></span>
+        <input type="text" class="form-control topic-level" value="{{ topic.level }}">
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div style="position: relative; bottom: 50%; transform: translateY(50%);" ><a href="{{ url_for('show_problems', topic = topic.name) }}"><span class="glyphicon glyphicon-book"></span> Задачи по теме</a></div>
+    </div>
 </div>
 {% endfor %}
 </div>
@@ -28,7 +41,7 @@
 $(function(){
     $(".grid").sortable({
         tolerance: 'pointer',
-        revert: 'invalid',
+        revert: 300,
         placeholder: 'span2 well placeholder tile',
         forceHelperSize: true
     });
@@ -46,27 +59,68 @@ $(function(){
     };
 
     $("input.existing-topic").autocomplete(autocomleteSettings).bind( 'blur', function(){
-        if(this.value == ''){
-            this.parentNode.parentNode.removeChild(this.parentNode);
+        if(!this.value){
+            $(this).closest('div.row').remove();
         }
     });
 
     $('button#add').bind('click', function() {
         var ni = document.createElement('div');
-        ni.classList.add('input-group');
-        ni.innerHTML = '<span class="input-group-addon">&nbsp;&nbsp;</span><input type="text" class="form-control existing-topic" placeholder="тема" value="">';
+        ni.classList.add('row');
+        ni.innerHTML = `
+            <div class="col-md-5" style="padding-left: 1em">
+                <div class="input-group">
+                <span class="input-group-addon"><span class="glyphicon glyphicon-resize-vertical"></span></span>
+                <input type="text" class="form-control existing-topic topic-name" placeholder="тема" value="">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="input-group">
+                <span class="input-group-addon"><span class="glyphicon glyphicon-education"></span></span>
+                <input type="text" class="form-control topic-level" placeholder="сложность" value="">
+                </div>
+            </div>
+            <div class="col-md-5">
+            </div>`;
         document.querySelector(".grid").appendChild(ni);
-        $("input.existing-topic").autocomplete(autocomleteSettings).bind( 'blur', function(){
-        if(this.value == ''){
-            this.parentNode.parentNode.removeChild(this.parentNode);
-        }
-    });
+        $(ni).find("input.existing-topic").autocomplete(autocomleteSettings).bind( 'blur', function(){
+            if(this.value == ''){
+                $(this).closest('div.row').remove();
+            }
+        });
         ni.querySelector("input").focus();
     });
 
+    $('button#new').bind('click', function() {
+        var ni = document.createElement('div');
+        ni.classList.add('row');
+        ni.innerHTML = `
+            <div class="col-md-5" style="padding-left: 1em">
+                <div class="input-group">
+                <span class="input-group-addon"><span class="glyphicon glyphicon-resize-vertical"></span></span>
+                <input type="text" class="form-control new-topic topic-name" placeholder="тема" value="">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="input-group">
+                <span class="input-group-addon"><span class="glyphicon glyphicon-education"></span></span>
+                <input type="text" class="form-control topic-level" placeholder="сложность" value="">
+                </div>
+            </div>
+            <div class="col-md-5">
+            </div>`
+        document.querySelector(".grid").appendChild(ni);
+        $(ni).find("input.existing-topic").bind( 'blur', function(){
+            if(this.value == ''){
+                $(this).closest('div.row').remove();
+            }
+        });
+    });
+
     $('button#save').bind('click', function() {
-        var dataToSend = {'topics':'', 'newtopics': ''};
-        var allInputs = document.querySelector('.grid').querySelectorAll('input');
+        var dataToSend = {'topics':'', 'levels': '', 'newtopics': ''};
+        var allInputs = document.querySelector('.grid').querySelectorAll('input.topic-name');
+        var allLevelInputs = document.querySelector('.grid').querySelectorAll('input.topic-level');
         for(var i = 0; i < allInputs.length; ++i){
             if(allInputs[i].classList.contains('new-topic')){
                 allInputs[i].classList.remove('new-topic')
@@ -80,9 +134,11 @@ $(function(){
             }
             if(dataToSend['topics'] && allInputs[i].value){
                 dataToSend['topics'] += '|';
+                dataToSend['levels'] += '|';
             }
             if(allInputs[i].value){
                 dataToSend['topics'] += allInputs[i].value;
+                dataToSend['levels'] += allLevelInputs[i].value;
             }
         }
 
@@ -96,18 +152,6 @@ $(function(){
             }
         });
         return false;
-    });
-
-    $('button#new').bind('click', function() {
-        var ni = document.createElement('div');
-        ni.classList.add('input-group');
-        ni.innerHTML = '<span class="input-group-addon">&nbsp;&nbsp;</span><input type="text" class="form-control new-topic" placeholder="новая тема" value="">';
-        document.querySelector(".grid").appendChild(ni);
-        $("input.new-topic").bind( 'blur', function(){
-            if(this.value == ''){
-                this.parentNode.parentNode.removeChild(this.parentNode);
-            }
-        });
     });
 });
 </script>

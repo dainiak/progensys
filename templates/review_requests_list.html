@@ -43,9 +43,15 @@
             dataToSend['user'] = uid;
             dataToSend['problem'] = pid;
             dataToSend['action'] = 'SEND_FOR_REWORK'
-            var comment = prompt("Введите комментарий для студента (опционально)");
-            if (comment) {
-                dataToSend['comment'] = 'Комментарий от проверяющего: ' + comment;
+            var comment = prompt("Введите комментарий для студента");
+            if (comment !== null) {
+                if (comment){
+                    dataToSend['comment'] = 'Комментарий от проверяющего: ' + comment;
+                }
+            }
+            else{
+                alert('Действие отменено');
+                return;
             }
 
             $.ajax({
@@ -79,6 +85,12 @@
             dataToSend['user'] = uid;
             dataToSend['problem'] = pid;
             dataToSend['result'] = '1';
+
+            var comment = prompt("Введите комментарий для студента");
+            if (comment) {
+                dataToSend['comment'] = 'Комментарий от проверяющего: ' + comment;
+            }
+
             $.ajax({
                 url: '{{ url_for("corrections_interface") }}',
                 data: JSON.stringify(dataToSend),
@@ -91,6 +103,10 @@
                 }
             });
         }
+
+        function filter(p, s) {
+            $('tr[data-' + p + ']').not('[data-' + p + '="' + s + '"]').toggle();
+        }
     </script>
 {% endblock head %}
 
@@ -98,14 +114,14 @@
     {% if show_remove_expired_ui %}
     <button class="btn" id="removeexpired" onclick="removeExpired()">Удалить просроченные дорешки</button>
     {% endif %}
-    <table class="table table-striped">
-    <thead><th>Пользователь</th><th>Задача</th><th>Проверяющий</th><th>Статус</th><th>Действия</th></thead>
+    <table id="mainTable" class="table table-striped">
+    <thead><th>Пользователь</th><th>Ссылка на ShareLaTeX</th><th>Задача</th><th>Проверяющий</th><th>Статус</th><th>Действия</th></thead>
     <tbody>
     {% for i in items %}
-    <tr>
-        <td>{% if i.url %}<a href="{{ i.url }}" target="_blank">{% endif %}{{ i.username }}{% if i.url %}</a>{% endif %}</td>
-        <td>{{ i.problem }}</td>
-        <td id="reviewer{{ loop.index }}">{{ i.reviewer }}</td>
+    <tr data-reviewer="{{ i.reviewer }}" data-problem="{{i.problem}}" data-username="{{ i.username }}">
+        <td><a href="javascript:void(0)" onclick="filter('username','{{i.username}}')">{{ i.username }}</a></td><td>{% if i.url %}<a href="{{ i.url }}" target="_blank">проект</a>{% endif %}</td>
+        <td><a href="javascript:void(0)" onclick="filter('problem','{{i.problem}}')">{{ i.problem }}</a></td>
+        <td id="reviewer{{ loop.index }}"><a href="javascript:void(0)" onclick="filter('reviewer', '{{ i.reviewer }}');">{{ i.reviewer }}</a></td>
         <td>{{ i.state }}</td>
         <td>
         {% if i.reviewer != current_logged_user %}

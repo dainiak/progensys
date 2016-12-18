@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Создание и печать теста{% endblock %}
+{% block title %}Тест в группе {{group}} на дату {{date}}{% endblock %}
 {% block head %}
     <style type="text/css">
         .variant {
@@ -44,9 +44,9 @@
 
     {% for uid, ups in problems.items() %}
     <div class="variant" data-uid="{{ uid }}" data-pids="{% for p in ups %}{% if not loop.first %},{% endif %}{{ p.id }}{% endfor %}">
-        <h1>Студент <em>{{ users[uid] }}</em>, группа {{ group }}, дата <span class='header-date'>{{ date }}</span></h1>
+        <h1>Студент <em>{{ users[uid] }}</em>, группа {{ group }}, дата <span class='header-date'>{{ date }}</span>, тест <span class='header-test-number'>{{ suggested_test_number }}</span></h1>
         <table>
-            <tr>{% for p in ups %}<td>{{ loop.index }}<sub>({{ p.id }})</sub></td>{% endfor %}</tr>
+            <tr>{% for p in ups %}<td>\({{ loop.index }}_{({{ p.id }})}^{[{{ p.level }}]}\)</td>{% endfor %}</tr>
             <tr>{% for i in range(ups|length) %}<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>{% endfor %}</tr>
         </table>
         <ol>
@@ -65,7 +65,14 @@
         $('span#result').html('← нажатие на эту кнопку сохранит информацию о задачах в базе данных;<br>обязательно нужно это сделать перед печатью вариантов');
 
         $('input#testdate').bind('change',function(){
-            $('.header-date').text(document.querySelector('#testdate').value);
+            var date = document.querySelector('#testdate').value;
+            $('.header-date').text(date);
+            document.title = 'Тест в группе {{group}} на дату ' + date;
+            return false;
+        });
+
+        $('input#testnumber').bind('change',function(){
+            $('.header-test-number').text(document.querySelector('#testnumber').value);
             return false;
         });
 

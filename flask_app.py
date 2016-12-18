@@ -108,7 +108,7 @@ from flask import Flask
 from flask import escape, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from collections import defaultdict
 import random
 import flask.ext.login as flask_login
@@ -175,9 +175,8 @@ class Learner(db.Model):
     # In case a student is visiting classes with a different group:
     academic_group_real = db.Column(db.Integer, db.ForeignKey('academic_group.id'))
 
-    def __init__(self, username, email, names):
-        self.username = username
-        self.email = email
+    def __init__(self, user_id):
+        self.user_id = user_id
 
 class ProblemSnapshot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -248,15 +247,16 @@ def request_loader(request):
     if user is None:
         return
 
-    user.is_authenticated = False
     if 'pw' in request.form and hasattr(user,'pwdhash') and md5(request.form['pw']) == user.pwdhash:
         user.is_authenticated = True
+#    else:
+#        user.is_authenticated = False
 
     return user
 
 @app.route('/add_user', methods=['GET','POST'])
-@flask_login.login_required
-def calc_md5():
+#@flask_login.login_required
+def add_user():
     if flask_login.current_user.username != tpbeta_superuser_username:
         return 'Only supervisor can add users.'
 
@@ -265,23 +265,37 @@ def calc_md5():
                <form action='add_user' method='POST'>
                 <input type='text' name='username' id='username' placeholder='логин'></input>
                 <input type='text' name='name' id='name' placeholder='Фамилия Имя Отчество'></input>
+                <input type='text' name='email' id='email' placeholder='адрес email'></input>
+                <input type='text' name='group' id='group' placeholder='академическая группа'></input>
                 <input type='password' name='pw' id='pw' placeholder='предлагаемый пароль'></input>
                 <input type='submit' name='submit'></input>
                </form>
                '''
 
     user = User.query.filter_by(username = request.form['username']).first()
-    if user is not None:
-        return 'Такой пользователь уже существует'
+    #if user is not None:
+    #    return 'Такой пользователь уже существует'
 
-    u = User()
-    u.username = request.form['username']
-    u.firstname, u.lastname, u.middlename = parse_person_name(request.form['name'])
-    u.pwdhash = md5(request.form['pw'])
-    db.session.add(u)
+    user = User()
+    user.username = request.form['username']
+    user.firstname, user.lastname, user.middlename = parse_person_name(request.form['name'])
+    user.email = request.form['email']
+    user.pwdhash = md5(request.form['pw'])
+    db.session.add(user)
+
+    if request.form['group'] and request.form['group'].isdecimal():
+        group_number = request.form['group']
+        group = AcademicGroup.query.filter_by(number = group_number).first()
+        if not group:
+            group = AcademicGroup(group_number)
+            db.session.add(group)
+        learner = Learner(user.id)
+        learner.academic_group = group.id
+        db.session.add(learner)
+
     db.session.commit()
 
-    return 'Пользователь {0} успешно добавлен'.format(u.username)
+    return 'Пользователь {0} успешно добавлен'.format(user.username)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -469,7 +483,7 @@ def new_problem_comment(problem_id):
     db.session.commit()
     return jsonify(result='Комментарий успешно добавлен. Обновите страницу для отображения.');
 
-@app.route('/problems/<topic>')
+@app.route('/problems/<topic>/')
 @flask_login.login_required
 def show_problems(topic):
     if flask_login.current_user.username not in teachers:
@@ -584,8 +598,10 @@ def edit_trajectory():
         return "You need to be logged in as a teacher to update trajectory"
 
     if request.method == 'GET':
-        r = list(map(int, Trajectory.query.first().topics.split('|')))
-        return render_template('trajectory.html', topics = [db.session.query(Topic.topic).filter(Topic.id==i).first()[0] for i in r])
+        trajectory_topics = list(map(int, Trajectory.query.first().topics.split('|')))
+        topics = {t.id: (t.level, t.topic) for t in Topic.query.filter(Problem.id.in_(trajectory_topics)).all()}
+
+        return render_template('trajectory.html', topics = [{'id': id, 'name': topics[id][1], 'level': topics[id][0]} for id in trajectory_topics])
 
     num_added_new_topics = 0
     if request.json['newtopics']:
@@ -598,8 +614,16 @@ def edit_trajectory():
                 num_added_new_topics += 1
 
     topic_names = request.json['topics'].split('|')
-    r = '|'.join(str(db.session.query(Topic.id).filter(Topic.topic==t).first()[0]) for t in topic_names)
-    Trajectory.query.first().topics = r
+    topic_levels = request.json['levels'].split('|')
+    topic_ids = []
+
+    for name, level in zip(topic_names,topic_levels):
+        t = Topic.query.filter_by(topic=name).first()
+        if level.isdecimal():
+            t.level = int(level)
+        topic_ids.append(str(t.id))
+
+    Trajectory.query.first().topics = '|'.join(topic_ids)
     db.session.commit()
 
     if num_added_new_topics > 0:
@@ -666,41 +690,18 @@ def view_test(group_number, test_number):
         log_info = log_info,
         view_only = True)
 
-@app.route('/test/create/<int:group_number>', methods=['GET','POST'])
+
+@app.route('/test/create_for_user/<int:user_id>', methods=['GET','POST'])
 @flask_login.login_required
-def create_test(group_number):
+def create_test_for_user(user_id):
     max_problems = int(request.args.get('max', 5))
     current_variation = defaultdict(int)
 
     if flask_login.current_user.username not in teachers:
         return "You need to be logged in as a teacher to create tests"
 
-    if request.method == 'POST':
-        if not request.json or 'test_number' not in request.json:
-            return jsonify(result = 'Ошибка сохранения.')
-        test_number = int(request.json['test_number'])
-        test_date = datetime(*map(int, request.json['test_date'].split('-')))
-        for s in request.json['problems'].split('|'):
-            s_user, s_problems = s.split(':')
-            if not s_user or db.session.query(TestLog.id).filter(TestLog.test_number == int(test_number), TestLog.user == int(s_user)).first():
-                db.session.rollback()
-                return jsonify(result = 'Ошибка: в базе данных уже есть запись о тесте {0} у пользователя #{1}'.format(test_number, s_user))
-            testlog = TestLog()
-            testlog.test_number = test_number
-            testlog.datetime = test_date
-            testlog.user = int(s_user)
-            testlog.problems = s_problems
-            db.session.add(testlog)
-        db.session.commit()
-        return jsonify(result = 'Информация о тесте сохранена.')
-
-    users = db.session.query(User)\
-        .join(Learner, Learner.user_id == User.id)\
-        .join(AcademicGroup, Learner.academic_group == AcademicGroup.id)\
-        .filter(AcademicGroup.number == group_number)\
-        .all()
-
-    suggested_test_number = max(x[0] for x in db.session.query(TestLog.test_number).filter(TestLog.user == users[0].id).all()) + 1
+    users = User.query.filter_by(id = user_id).all()
+    suggested_test_number = max((x[0] for x in db.session.query(TestLog.test_number).filter(TestLog.user == users[0].id).all()), default = 0) + 1
 
     users = { u.id : '{0} {1}'.format(u.firstname, u.lastname) for u in users }
 
@@ -721,13 +722,12 @@ def create_test(group_number):
                 clones[cid].add(p.id)
 
     log_info = ''
-    # if flask_login.current_user.username == tpbeta_superuser_username:
-    #     log_info = '; '.join(str(cid) + ' : ' +  ','.join(str(t) for t in clones[cid]) for cid in clones)
 
     problem_sets = dict()
 
     for user_id in users:
         user_history = { i: -1 for i in problem_ids }
+        group_number = AcademicGroup.query.filter_by(id = Learner.query.filter_by( user_id = user_id ).first().academic_group).first().number
         user_history_items = History.query.filter(History.user == user_id, History.problem.in_(problem_ids))
         for h in user_history_items:
             if h.event in event_to_number:
@@ -781,6 +781,121 @@ def create_test(group_number):
         log_info = log_info)
 
 
+@app.route('/test/create/<int:group_number>', methods=['GET','POST'])
+@flask_login.login_required
+def create_test(group_number):
+    max_problems = int(request.args.get('max', 5))
+    current_variation = defaultdict(int)
+
+    if flask_login.current_user.username not in teachers:
+        return "You need to be logged in as a teacher to create tests"
+
+    if request.method == 'POST':
+        if not request.json or 'test_number' not in request.json:
+            return jsonify(result = 'Ошибка сохранения.')
+        test_number = int(request.json['test_number'])
+        test_date = datetime(*map(int, request.json['test_date'].split('-')))
+        for s in request.json['problems'].split('|'):
+            s_user, s_problems = s.split(':')
+            if not s_user or db.session.query(TestLog.id).filter(TestLog.test_number == int(test_number), TestLog.user == int(s_user)).first():
+                db.session.rollback()
+                return jsonify(result = 'Ошибка: в базе данных уже есть запись о тесте {0} у пользователя #{1}'.format(test_number, s_user))
+            testlog = TestLog()
+            testlog.test_number = test_number
+            testlog.datetime = test_date
+            testlog.user = int(s_user)
+            testlog.problems = s_problems
+            db.session.add(testlog)
+        db.session.commit()
+        return jsonify(result = 'Информация о тесте сохранена.')
+
+    users = db.session.query(User)\
+        .join(Learner, Learner.user_id == User.id)\
+        .join(AcademicGroup, Learner.academic_group == AcademicGroup.id)\
+        .filter(AcademicGroup.number == group_number)\
+        .all()
+
+    suggested_test_number = max((x[0] for x in db.session.query(TestLog.test_number).filter(TestLog.user == users[0].id).all()), default = 0) + 1
+
+    users = { u.id : '{0} {1}'.format(u.firstname, u.lastname) for u in users }
+
+    event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
+    trajectory_list = Trajectory.query.first().topics.split('|')
+    trajectory_topics = list(set(trajectory_list))
+    trajectory_list = list(map(int, trajectory_list))
+    problems_for_trajectory = Problem.query.filter(Problem.topics.in_(trajectory_topics)).all()
+    topic_levels = {t.id: t.level for t in Topic.query.filter(Problem.id.in_(trajectory_topics)).all()}
+    problem_ids = list(p.id for p in problems_for_trajectory)
+    clones = defaultdict(set)
+    problems_by_topic = defaultdict(list)
+    for p in problems_for_trajectory:
+        problems_by_topic[int(p.topics)].append(p)
+        if p.clones and len(p.clones) > 0:
+            c = [int(i) for i in p.clones.split(',')]
+            clones[p.id].update(c)
+            for cid in clones[p.id]:
+                clones[cid].add(p.id)
+
+    log_info = ''
+
+    problem_sets = dict()
+
+    for user_id in users:
+        user_history = { i: -1 for i in problem_ids }
+        user_history_items = History.query.filter(History.user == user_id, History.problem.in_(problem_ids))
+        for h in user_history_items:
+            if h.event in event_to_number:
+                user_history[h.problem] = max(user_history[h.problem], event_to_number[h.event])
+        user_remaining_trajectory_items = trajectory_list[:]
+        counted_problems = set()
+        for i, t in enumerate(user_remaining_trajectory_items):
+            for p in problems_by_topic[t]:
+                if user_history[p.id] >= 2 and p.id not in counted_problems:
+                    user_remaining_trajectory_items[i] = 0
+                    counted_problems.add(p.id)
+                    if p.id in clones:
+                        counted_problems.update(clones[p.id])
+                    break
+
+        user_remaining_trajectory_items = filter(None, user_remaining_trajectory_items)
+        used_problem_ids = set()
+        problems_for_user = list()
+        for topic_id in user_remaining_trajectory_items:
+            for p in problems_by_topic[topic_id]:
+                if user_history[p.id] == -1 and (p.id not in used_problem_ids):
+                    problems_for_user.append(p)
+                    used_problem_ids.add(p.id)
+                    if p.id in clones:
+                        used_problem_ids.update(clones[p.id])
+                    break
+            else:
+                for p in problems_by_topic[topic_id]:
+                    if user_history[p.id] <= 1 and (p.id not in used_problem_ids):
+                        problems_for_user.append(p)
+                        used_problem_ids.add(p.id)
+                        if p.id in clones:
+                            used_problem_ids.update(clones[p.id])
+                        break
+        problem_sets[user_id] = []
+        for p in problems_for_user[:max_problems]:
+            problem_sets[user_id].append({
+                'id': p.id,
+                'text': latex_to_html(p.statement, variation=current_variation[p.id]),
+                'level': topic_levels[int(p.topics)]
+            })
+            current_variation[p.id] += 1
+
+    return render_template(
+        'test_printout.html',
+        problems = problem_sets,
+        users = users,
+        group = group_number,
+        suggested_test_number = suggested_test_number,
+        date = date.today().isoformat(),
+        max_problems = max_problems,
+        log_info = log_info)
+
+
 @app.route('/learnerdashboard')
 @flask_login.login_required
 def learner_dashboard():
@@ -820,12 +935,110 @@ def test_results(test_number):
         marks = marks
     )
 
+
+def getUsersTrajectoryResults(user_ids):
+    results = dict()
+    event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
+    all_topics = Topic.query.all()
+    trajectory_list = Trajectory.query.first().topics.split('|')
+    trajectory_topics = list(set(trajectory_list))
+    trajectory_list = list(map(int, trajectory_list))
+    topic_levels = { t.id: t.level for t in all_topics if t.id in trajectory_list }
+    problems_for_trajectory = Problem.query.filter(Problem.topics.in_(trajectory_topics)).all()
+    problem_ids = list(p.id for p in problems_for_trajectory)
+    clones = defaultdict(set)
+    problems_by_topic = defaultdict(list)
+    for p in problems_for_trajectory:
+        problems_by_topic[int(p.topics)].append(p)
+        if p.clones and len(p.clones) > 0:
+            c = [int(i) for i in p.clones.split(',')]
+            clones[p.id].update(c)
+            for cid in clones[p.id]:
+                clones[cid].add(p.id)
+
+    results[0] = { level: len([1 for t in trajectory_list if topic_levels[t] == level ]) for level in set(topic_levels.values()) }
+
+    for user_id in user_ids:
+        user_history_items = History.query.filter(History.user == user_id, History.problem.in_(problem_ids)).all()
+        if len(user_history_items) == 0:
+            continue
+
+        user_history = { i: -1 for i in problem_ids }
+        review_requests = dict()
+        for h in user_history_items:
+            if h.event == 'REVIEW_REQUEST':
+                review_requests[h.problem] = h
+                if h.problem not in user_history:
+                    user_history[h.problem] = event_to_number['ALMOST']
+                else:
+                    user_history[h.problem] = max(user_history[h.problem], event_to_number['ALMOST'])
+            if h.event in event_to_number:
+                user_history[h.problem] = max(user_history[h.problem], event_to_number[h.event])
+        user_trajectory_results = [0] * len(trajectory_list)
+        counted_problems = set()
+        for i, t in enumerate(trajectory_list):
+            for p in problems_by_topic[t]:
+                if user_history[p.id] >= 2 and p.id not in counted_problems:
+                    user_trajectory_results[i] = user_history[p.id]
+                    counted_problems.add(p.id)
+                    if p.id in clones:
+                        counted_problems.update(clones[p.id])
+                    break
+        results[user_id] = { key: 0 for key in results[0].keys() }
+
+        for i in range(len(trajectory_list)):
+            if user_trajectory_results[i] == event_to_number['SUCCESS']:
+                results[user_id][topic_levels[trajectory_list[i]]] += 1
+
+        results[user_id]['final_grade'] = 0
+
+        res1, res2, res3 = (results[user_id][i] for i in [1,2,3])
+        maxres1, maxres2, maxres3 = (results[0][i] for i in [1,2,3])
+
+        if res1 < maxres1:
+            res2 += res3
+            res3 = 0
+            while res1 < maxres1 and res2 >= 3:
+                res2 -= 3
+                res1 += 1
+            if res2 > maxres2:
+                res3 = res2-maxres2
+                maxres2 = res3
+
+        while res2 < maxres2 and res3 >= 2:
+            res3 -= 2
+            res2 += 1
+
+        if res1 == maxres1:
+            results[user_id]['final_grade'] = 4
+            if res2 >= 2:
+                results[user_id]['final_grade'] += 1
+            if res2 >= 4:
+                results[user_id]['final_grade'] += 1
+            if res2 >= maxres2:
+                results[user_id]['final_grade'] += 1
+                if res3 >= 1:
+                    results[user_id]['final_grade'] += 1
+                if res3 >= 2:
+                    results[user_id]['final_grade'] += 1
+                if res3 >= 3:
+                    results[user_id]['final_grade'] += 1
+
+    return results
+
+
 @app.route('/learnerdashboard/trajectory', methods=['GET'])
 @flask_login.login_required
 def trajectory_progress():
     user_id = flask_login.current_user.id
     if ('user' in request.args) and flask_login.current_user.username in teachers:
         user_id = int(request.args['user'])
+
+    final_grade = getUsersTrajectoryResults([user_id])
+    if final_grade and user_id in final_grade:
+        final_grade = final_grade[user_id]['final_grade']
+    else:
+        final_grade = '???'
 
     event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
     number_to_square = {-1 : '□', 0 : '□', 1 : '□', 2 : '◩', 3 : '■'}
@@ -909,8 +1122,27 @@ def trajectory_progress():
 
     return render_template('student_trajectory.html',
         results = results,
-        user = user_id
+        user = user_id,
+        final_grade = final_grade
     )
+
+
+@app.route('/grades')
+@flask_login.login_required
+def show_final_grades():
+    if flask_login.current_user.username not in teachers:
+        return "You need to be logged in as a teacher to view userlist"
+    users = User.query.all()
+    grades = getUsersTrajectoryResults({u.id for u in users})
+    for u in users:
+        u.name = u.lastname + ' ' + u.firstname
+        if u.id in grades:
+            u.grades = grades[u.id]
+
+    return render_template(
+        'final_grades.html',
+        users = filter(lambda x: (hasattr(x, 'grades') and 1 in x.grades and x.grades[1] >= 0), sorted(users, key=lambda u: u.name)),
+        maximum_grades = grades[0])
 
 @app.route('/users')
 @flask_login.login_required
@@ -918,8 +1150,10 @@ def show_user_list():
     if flask_login.current_user.username not in teachers:
         return "You need to be logged in as a teacher to view userlist"
     users = User.query.all()
+
     for u in users:
         u.name = u.lastname + ' ' + u.firstname
+
     return render_template(
         'user_list.html',
         users = sorted(users, key=lambda u: u.name),
@@ -954,6 +1188,15 @@ def recover_password():
 
     return jsonify(result = 'Успешно выслан пароль "{0}"'.format(new_password))
 
+def notify_user(user_id, subject, body):
+    user_data = User.query.filter_by(id=user_id).first()
+    if not user_data.email:
+        return
+    msg = Message(subject='Курс ДС: {}'.format(subject),
+                      body='Здравствуйте, {}!\n{}'.format(user_data.firstname, body),
+                      recipients=[user_data.email])
+    mail.send(msg)
+
 @app.route('/corrections', methods=['GET', 'POST'])
 @flask_login.login_required
 def corrections_interface():
@@ -971,6 +1214,12 @@ def corrections_interface():
             new_item.user = user
             new_item.problem = problem
             new_item.event = 'SUCCESS'
+            if 'comment' in request.json:
+                new_item.comment = 'CORRECTION|' + request.json['comment']
+            notify_user(
+                user,
+                'Ваше решение принято',
+                'Ваша дорешка по задаче {} принята. Дополнительный комментарий от проверяющего: {}'.format(problem, request.json['comment'] if 'comment' in request.json else '(отсутствует)'));
             new_item.comment = 'CORRECTION'
             new_item.datetime = datetime.now()
             db.session.add(new_item)
@@ -1013,15 +1262,6 @@ def corrections_interface():
         })
     data.sort( key = lambda x: usernames[x['id']] )
     return render_template('corrections.html', data=data)
-
-def notify_user(user_id, subject, body):
-    user_data = User.query.filter_by(id=user_id).first()
-    if not user_data.email:
-        return
-    message = Message(subject="Курс ДС: {}".format(subject),
-                      body="Здравствуйте, {}!\n{}".format(user_data.firstname, body),
-                      recipients=[user_data.email])
-    mail.send(msg)
 
 @app.route('/review', methods=['POST','GET'])
 @flask_login.login_required
@@ -1074,8 +1314,11 @@ def review_interface():
             else:
                 comment = 'Проверяющий {0} затребовал доработку решения'.format(flask_login.current_user.username)
             h.comment = '{0}|{1}|{2}'.format(flask_login.current_user.username, 'REWORK_REQUIRED', comment)
-            notify_user(user, "Ваше решение отправлено на доработку",
-                        "Ваша дорешка по задаче {} отправлена на доработку с комментарием: {}".format(problem, comment));
+            h.datetime = datetime.now()
+            notify_user(
+                user,
+                'Ваше решение отправлено на доработку',
+                'Ваша дорешка по задаче {} отправлена на доработку с комментарием: {}'.format(problem, comment));
             db.session.commit()
             return jsonify(result = 'Запрос на доработку отправлен')
         elif action == 'REMOVE_EXPIRED':
@@ -1091,7 +1334,7 @@ def review_interface():
                 delta = datetime.now() - i.datetime
                 if delta.days <= 21:
                     continue
-                if delta.days > 18:
+                if delta.days >= 19:
                     n_close_to_expiration += 1
                 db.session.delete(i)
                 n_deleted += 1
@@ -1105,7 +1348,7 @@ def review_interface():
     for h in history_items:
         username = db.session.query(User.username).filter(User.id == h.user).first()[0]
         reviewer = ''
-        state = 'Ожидает проверки с {0}'.format(h.datetime)
+        state = 'Ожидает проверки с {0}'.format(h.datetime + timedelta(minutes=3*60))
         formal_state = 'PENDING'
 
         if h.comment:
@@ -1114,7 +1357,7 @@ def review_interface():
             if len(tokens) > 1:
                 formal_state = tokens[1]
                 if formal_state == 'REWORK_REQUIRED':
-                    state = 'Находится на доработке'
+                    state = 'Находится на доработке с {0}'.format(h.datetime + timedelta(minutes=3*60))
                 if formal_state == 'REVIEW_REQUEST_RESENT':
                     state = 'Студент доработал решение и отправил запрос на перепроверку'
 
@@ -1129,12 +1372,13 @@ def review_interface():
             'url': latex_project_url,
             'user_id' : h.user,
             'problem': h.problem,
+            'datetime': h.datetime,
             'reviewer': reviewer,
             'state': state,
             'formal_state' : formal_state
         })
     return render_template('review_requests_list.html',
-        items = items,
+        items = sorted(items, key=lambda x: (x['state'], x['datetime'])),
         current_logged_user = flask_login.current_user.username,
         show_remove_expired_ui = (flask_login.current_user.username == tpbeta_superuser_username))
 
@@ -1155,6 +1399,7 @@ def show_topic_stats():
         qty_in_trajectory = sum(1 for i in trajectory_topic_ids if i == topic.id)
         data.append({
             'topic' : topic.topic,
+            'level' : topic.level,
             'qty_in_trajectory' : qty_in_trajectory,
             'num_problems' : len(topic_problem_ids),
             'num_tries' : db.session.query(History.id).filter(History.problem.in_(topic_problem_ids)).count(),
@@ -1201,3 +1446,10 @@ def root():
         mode = 'learner'
 
     return render_template('landing.html', mode = mode)
+
+
+@app.route('/board-tiling', methods=['POST','GET'])
+def board_tiling():
+    if request.method == 'POST' and request.form['oauth_consumer_key'] == 'c0urserachessb0ardapp':
+        oauth_consumer_key = request.form['oauth_consumer_key']
+        return redirect('https://dainiak.github.io/tilings/')

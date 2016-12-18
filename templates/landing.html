@@ -32,24 +32,31 @@
 {% endif %}
 
 {% if mode == 'teacher' %}
+<hr>
 <li><a href="{{ url_for('show_problems',topic='all') }}">Список всех задач</a></li>
 <li><a href="{{ url_for('new_problem') }}">Создание новой задачи</a></li>
-<li><a href="{{ url_for('edit_trajectory') }}">Редактирование траектории и добавление новых тем задач</a></li>
-<li><a href="{{ url_for('review_interface') }}">Запросы от студентов на проверку задач</a></li>
-<li><a style="color: #ddddff" href="{{ url_for('corrections_interface') }}">Список всех задач, отправленных на дорешку</a></li>
 <li><a href="{{ url_for('show_topic_stats') }}">Статитика успешности решений задач по каждой теме</a></li>
 <li><a href="{{ url_for('view_comments') }}">Все комментарии к задачам</a></li>
-
+<hr>
+<li><a href="{{ url_for('review_interface') }}">Запросы от студентов на проверку задач</a></li>
+<li><a style="color: #ddddff" href="{{ url_for('corrections_interface') }}">Список всех задач, отправленных на дорешку</a></li>
+<li><a href="https://dainiak.github.io/latexcheck/">Инструмент проверки текстов дорешек на очевидные несоответствия правилам оформления</a></li>
+<hr>
+<li><a href="{{ url_for('edit_trajectory') }}">Редактирование траектории и добавление новых тем задач</a></li>
 <li><a href="javascript:redirectToTestCreation()">Генерация нового теста</a></li>
 <li><a href="javascript:redirectToEditTestResults()">Редактирование результатов проведённого теста</a></li>
 <li><a href="javascript:redirectToViewTest()">Просмотр вариантов ранее проведённого теста</a></li>
-
+<hr>
+<li><a href="{{ url_for('add_user') }}">Добавление нового пользователя</a></li>
 <li><a href="{{ url_for('show_user_list') }}">Список пользователей системы</a></li>
+<li><a href="{{ url_for('show_final_grades') }}">Итоговые оценки за работу в семестре</a></li>
+
 {% endif %}
 
 {% if mode =='learner' %}
-<li><a href="{{ url_for('trajectory_progress') }}">Просмотр вашего текущего положения на общей траектории курса</a></li>
-<li><a href="{{ url_for('learner_dashboard') }}">Просмотр результатов отдельных тестов и условий задач</a></li>
+<li><a href="{{ url_for('trajectory_progress') }}">Текущее положение на общей траектории курса</a></li>
+<li><a href="{{ url_for('learner_dashboard') }}">Результаты отдельных тестов и условия задач</a></li>
+<li><a href="https://dainiak.github.io/latexcheck/">Инструмент проверки текстов дорешек на очевидные несоответствия правилам оформления</a></li>
 {% endif %}
 </ul>
 {% endblock body %}

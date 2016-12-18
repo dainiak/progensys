@@ -12,10 +12,11 @@
 {% endblock head %}
 
 {% block body %}
+    <textarea id="hiddenarea" style="display:none">{{ problem_statement|safe }}</textarea>
     <div class="container-fluid">
         <div class="row">
-            <div class="col-xs-6">Условие задачи в базе данных:<br><div id="textarea" class="well" style="width:100%;height:300px;"></div><textarea id="hiddenarea" style="display:none">{{ problem_statement|safe }}</textarea></div>
-            <div class="col-xs-6"><span id="mathjaxonly">Ниже — условие, обработанное только MathJax.</span> <a class="a" href="" id="processcompletely">Полная обработка</a> <br><div class="well"><span id="typeset"></span></div></div>
+            <div class="well col-xs-6" id="editor"></div>
+            <div class="well col-xs-6" id="typeset"></div>
         </div>
         <div class="row">
             <div class="col-xs-6">
@@ -43,23 +44,45 @@
 
     <script>
     $(function() {
-        var editor = ace.edit(document.querySelector('#textarea'));
+        var editor = ace.edit(document.querySelector('#editor'));
         editor.setValue(document.querySelector('#hiddenarea').value)
-        editor.setTheme('ace/theme/chrome');
-    	editor.getSession().setMode('ace/mode/latex');
-    	editor.$blockScrolling = Infinity; // To disable annoying ACE warning
-    	editor.setShowPrintMargin(false);
-    	editor.renderer.setShowGutter(true);
-    	editor.setFadeFoldWidgets(true);
-    	editor.resize();
-    	editor.getSession().setUseWrapMode(true);
-    	editor.focus();
-    	editor.on('blur', function(){
-    	    $('#typeset').text(editor.getValue());
-    	    $('#mathjaxonly').show(0);
-            MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')))
-    	});
+        editor.$blockScrolling = Infinity; // To disable annoying ACE warning
+        editor.setOptions({
+            theme: 'ace/theme/chrome',
+            mode: 'ace/mode/latex',
+            minLines: 3,
+            maxLines: Infinity,
+            wrap: true,
+            showGutter: true,
+            fadeFoldWidgets: false,
+            showPrintMargin: false
+        });
 
+        editor.commands.removeCommands(["gotoline", "find"]);
+        editor.commands.addCommand({
+            name: 'typeset',
+            bindKey: 'Ctrl-Enter',
+            exec: function(){
+        	    var dataToSend = {};
+                dataToSend['text'] = editor.getValue();
+                $.ajax({
+                    url: '/latex_to_html',
+                    data: JSON.stringify(dataToSend),
+                    contentType: 'application/json',
+                    type: 'POST',
+                    success: function(response) {
+                        if( response.result ){
+                            $('#typeset').html(response.result);
+                            $('#mathjaxonly').hide(0);
+                            MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')));
+                        }
+                    }
+                });
+        	}
+        });
+
+    	editor.resize();
+    	editor.focus();
     	editor.gotoLine(1);
 
         $("#topic").autocomplete({

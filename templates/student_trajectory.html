@@ -21,16 +21,18 @@
         }
 
         function sendForReview(pid,bid){
-            if (confirm("Подтверждаете ли Вы, что ознакомились с требованиями к оформлению решений по ссылке https://goo.gl/FhyJJm")) {
+            if (confirm("Подтверждаете ли Вы, что ознакомились с Правилами оформления решений по ссылке https://goo.gl/FhyJJm и проверили содержимое файла solution__.tex на авточереке")) {
                 sendForReviewAjax(pid,bid,'SEND_FOR_REVIEW');
             }
         }
         function resendForReview(pid,bid){
-            if (confirm("Подтверждаете ли Вы, что ознакомились с требованиями к оформлению решений по ссылке https://goo.gl/FhyJJm")) {
+            if (confirm("Подтверждаете ли Вы, что ознакомились с требованиями к оформлению решений по ссылке https://goo.gl/FhyJJm и проверили содержимое файла solution__.tex на авточереке")) {
                 sendForReviewAjax(pid,bid,'RESEND_FOR_REVIEW');
             }
         }
     </script>
+
+    <span class="well">Зачётная оценка: <strong>{{ final_grade }}</strong></span>
 
     <table class="table">
     <thead><th>Тема</th><th>Уровень</th><th>Результат</th><th>Задача,<br>закрывшая тему</th><th>Действия</th><th>Комментарии</th></thead>
@@ -43,10 +45,10 @@
         <td>{% if r.witness %}<a href="{{ url_for('show_problem', problem_id=r['witness']) }}">{{ r.witness }}</a>{% endif %}</td><td>
             {% if r.result == '◩' %}
                 {% if r.status == 'REVIEW_NOT_REQUESTED' %}
-                <button class="btn btn-default" id="{{ loop.index }}" onclick="sendForReview({{r.witness}},'{{ loop.index }}')">Послать на проверку</button>
+                <button class="btn" id="{{ loop.index }}" onclick="sendForReview({{r.witness}},'{{ loop.index }}')">Послать на проверку</button>
                 {% endif %}
                 {% if r.status == 'REWORK_REQUIRED' %}
-                <button class="btn btn-default" id="{{ loop.index }}" onclick="resendForReview({{r.witness}},'{{ loop.index }}')">Послать на перепроверку</button>
+                <button class="btn" id="{{ loop.index }}" onclick="resendForReview({{r.witness}},'{{ loop.index }}')">Послать на перепроверку</button>
                 {% endif %}
                 {% if r.status == 'REVIEWER_ASSIGNED' %}
                 Ждите письма от проверяющего.
