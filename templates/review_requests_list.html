@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}Список пользователей{% endblock %}
+{% block title %}Дорешки{% endblock %}
 {% block head %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" integrity="sha256-NuCn4IvuZXdBaFKJOAcsU2Q3ZpwbdFisd5dux4jkQ5w=" crossorigin="anonymous" />
+
     <script>
         {% if show_remove_expired_ui %}
         function removeExpired(){
@@ -31,9 +33,10 @@
                 contentType: 'application/json',
                 type: 'POST',
                 success: function(response) {
-                    $('#reviewer'+bid).text(response.reviewer);
-                    $('#'+bid).text(response.result).attr('disabled','disabled');
-                    location.reload();
+                    $('#reviewer'+bid).html('<a href="javascript:void(0)" onclick="filter(\'reviewer\', \''+ response.reviewer + '\');">' + response.reviewer + '</a>');
+                    $('#actions'+bid+' > .btn').show();
+                    $('#'+bid).attr('disabled','disabled').hide().parent().append($('<span class="badge"></span>').text(response.result));
+                    //location.reload();
                 }
             });
         }
@@ -77,6 +80,8 @@
                 type: 'POST',
                 success: function(response) {
                     $('#del'+bid).text(response.result).attr('disabled','disabled');
+                    var tr = $('#del'+bid).closest('tr')[0];
+                    tr.parentNode.removeChild(tr);
                 }
             });
         }
@@ -115,25 +120,26 @@
     <button class="btn" id="removeexpired" onclick="removeExpired()">Удалить просроченные дорешки</button>
     {% endif %}
     <table id="mainTable" class="table table-striped">
-    <thead><th>Пользователь</th><th>Ссылка на ShareLaTeX</th><th>Задача</th><th>Проверяющий</th><th>Статус</th><th>Действия</th></thead>
+    <thead><th>Пользователь</th><th>ShareLaTeX</th><th>Задача</th><th>Проверяющий</th><th>Статус</th><th>Действия</th></thead>
     <tbody>
     {% for i in items %}
     <tr data-reviewer="{{ i.reviewer }}" data-problem="{{i.problem}}" data-username="{{ i.username }}">
-        <td><a href="javascript:void(0)" onclick="filter('username','{{i.username}}')">{{ i.username }}</a></td><td>{% if i.url %}<a href="{{ i.url }}" target="_blank">проект</a>{% endif %}</td>
+        <td><a href="javascript:void(0)" onclick="filter('username','{{i.username}}')">{{ i.username }}</a></td><td style="text-align: center;">{% if i.url %}<a href="{{ i.url }}" target="_blank"><i class="fa fa-file-text-o" aria-hidden="true"></i>
+</a>{% endif %}</td>
         <td><a href="javascript:void(0)" onclick="filter('problem','{{i.problem}}')">{{ i.problem }}</a></td>
         <td id="reviewer{{ loop.index }}"><a href="javascript:void(0)" onclick="filter('reviewer', '{{ i.reviewer }}');">{{ i.reviewer }}</a></td>
         <td>{{ i.state }}</td>
-        <td>
+        <td id="actions{{ loop.index }}">
         {% if i.reviewer != current_logged_user %}
             <button class="btn" id="{{ loop.index }}" onclick="takeForReview({{ i.user_id }},{{ i.problem }},{{ loop.index }})">Взять на проверку</button>
         {% endif %}
-        {% if i.reviewer %}
-            <button class="btn" id="del{{ loop.index }}" onclick="deleteRequest({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Удалить запрос</button>
-            <button class="btn" id="acc{{ loop.index }}" onclick="acceptSolution({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Засчитать решение</button>
+
+            <button class="btn"{% if not i.reviewer %} style="display:none;" {% endif %} id="del{{ loop.index }}" onclick="deleteRequest({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Удалить запрос</button>
+            <button class="btn"{% if not i.reviewer %} style="display:none;" {% endif %} id="acc{{ loop.index }}" onclick="acceptSolution({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Засчитать решение</button>
             {% if i.formal_state != 'REWORK_REQUIRED' %}
-            <button class="btn" id="rwk{{ loop.index }}" onclick="sendForRework({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Отправить на доработку</button>
+            <button class="btn" id="rwk{{ loop.index }}" {% if not i.reviewer %} style="display:none;" {% endif %} onclick="sendForRework({{ i.user_id }},{{ i.problem }},'{{ loop.index }}')">Отправить на доработку</button>
             {% endif %}
-        {% endif %}</td>
+        </td>
     </tr>
     {% endfor %}
     </tbody>

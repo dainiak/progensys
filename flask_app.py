@@ -1,5 +1,12 @@
 # coding=utf8
 
+ignored_topics = ['STEPIC_REVISION_SUMPROD', 'STEPIC_REVISION_ROUNDING', 'PIGEONHOLE', 'INDUCTION', 'ENUMERATION', 'SUMS_OF_BINOMIALS',
+    'DOUBLE_COUNT', 'GRAPHS_ISOMORPHIC', 'GRAPHS_COUNTING_ISOMORPHIC', 'GRAPHS_TREES_AND_FORESTS', 'GRAPHS_PRUFER', 'GRAPHS_METRICS',
+    'GRAPHS_PLANARITY', 'GRAPHS_GREEDY_ALGORITHM', 'GRAPHS_PIGEONHOLE', 'GRAPHS_ADVANCED', 'GRAPHS_COLORINGS_ADVANCED', 'GRAPHS_EULERIAN', 'GRAPHS_DEBRUIJN',
+    'GRAPHS_HAMILTONIAN', 'NUMBER_THEORY_LINEAR_EQUATIONS', 'NUMBER_THEORY_LINEAR_EQUATIONS_ADVANCED', 'NUMBER_THEORY_CHINESE_REMAINDER_THEOREM',
+    'INCLEXCL', 'POTENTIALS', 'ENUMERATION_ADVANCED', 'SUM_OF_BINOMALS_ADVANCED', 'NUMBER_THEORY_EULER_FERMAT_THEOREM', 'GRAPHS_MATCHINGS',
+    'NUMBER_THEORY_PRIMITIVE_ROOTS', 'GRAPHS_HAMILTONIAN_ADVANCED', 'GRAPHS_MATCHINGS_ADVANCED', 'NUMBER_THEORY_PRIMITIVE_ROOTS_ADVANCED', 'NUMBER_THEORY_INDEXES']
+
 def parse_person_name(name):
     tokens = name.strip().split()
     if len(tokens) == 2:
@@ -705,10 +712,13 @@ def create_test_for_user(user_id):
 
     users = { u.id : '{0} {1}'.format(u.firstname, u.lastname) for u in users }
 
+    ignored_topic_ids = [x[0] for x in db.session.query(Topic.id).filter(Topic.topic.in_(ignored_topics)).all()]
+
     event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
     trajectory_list = Trajectory.query.first().topics.split('|')
     trajectory_topics = list(set(trajectory_list))
-    trajectory_list = list(map(int, trajectory_list))
+    topic_levels = {t.id: t.level for t in Topic.query.filter(Problem.id.in_(trajectory_topics)).all()}
+    trajectory_list = [i for i in map(int, trajectory_list) if i not in ignored_topic_ids]
     problems_for_trajectory = Problem.query.filter(Problem.topics.in_(trajectory_topics)).all()
     problem_ids = list(p.id for p in problems_for_trajectory)
     clones = defaultdict(set)
@@ -766,7 +776,8 @@ def create_test_for_user(user_id):
         for p in problems_for_user[:max_problems]:
             problem_sets[user_id].append({
                 'id': p.id,
-                'text': latex_to_html(p.statement, variation=current_variation[p.id])
+                'text': latex_to_html(p.statement, variation=current_variation[p.id]),
+                'level': topic_levels[int(p.topics)]
             })
             current_variation[p.id] += 1
 
@@ -819,10 +830,12 @@ def create_test(group_number):
 
     users = { u.id : '{0} {1}'.format(u.firstname, u.lastname) for u in users }
 
+    ignored_topic_ids = [x[0] for x in db.session.query(Topic.id).filter(Topic.topic.in_(ignored_topics)).all()]
+
     event_to_number = { 'SEEN': 0, 'TRIED': 1, 'ALMOST': 2, 'SUCCESS': 3 }
     trajectory_list = Trajectory.query.first().topics.split('|')
     trajectory_topics = list(set(trajectory_list))
-    trajectory_list = list(map(int, trajectory_list))
+    trajectory_list = [i for i in map(int, trajectory_list) if i not in ignored_topic_ids]
     problems_for_trajectory = Problem.query.filter(Problem.topics.in_(trajectory_topics)).all()
     topic_levels = {t.id: t.level for t in Topic.query.filter(Problem.id.in_(trajectory_topics)).all()}
     problem_ids = list(p.id for p in problems_for_trajectory)
@@ -1357,7 +1370,7 @@ def review_interface():
             if len(tokens) > 1:
                 formal_state = tokens[1]
                 if formal_state == 'REWORK_REQUIRED':
-                    state = 'Находится на доработке с {0}'.format(h.datetime + timedelta(minutes=3*60))
+                    state = 'На доработке с {0}'.format(h.datetime + timedelta(minutes=3*60))
                 if formal_state == 'REVIEW_REQUEST_RESENT':
                     state = 'Студент доработал решение и отправил запрос на перепроверку'
 

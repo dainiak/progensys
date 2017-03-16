@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha.5/css/bootstrap-flex.css" integrity="sha256-5E2slMOe9pemBvrSE9dbFPkZcx+3ooCJOoFapVey31s=" crossorigin="anonymous" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js" integrity="sha384-3ceskX3iaEnIogmQchP8opvBy3Mi7Ce34nWjpBIwVTHfGYWQS9jwHDVRnpKKHJg7" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.3.7/js/tether.min.js" integrity="sha384-XTs3FgkjiBgo8qjEjBk0tGmf3wPrWtA6coPfQDfFEY8AnYJwjalXCiosYRBIBZX8" crossorigin="anonymous"></script>
+    <title>Title</title>
+</head>
+<body style="width: 100%; height: 100% ;vertical-align: middle; text-align: center">
+<div class="container-fluid">
+<div class="row flex-items-md-center"><svg id="svg" width="600" height="600"></svg></div>
+
+<div class="btn-group-vertical">
+    <button class="btn" id="btnVer">Замостить вертикальными</button>
+    <button class="btn" id="btnHor">Замостить горизонтальными</button>
+    <button class="btn" id="btnSpiral">Замостить по спирали</button>
+    <button class="btn" id="btnManual">Замостить самостоятельно</button>
+
+</div>
+</div>
+
+<script type="text/javascript">
+	var s = Snap('#svg');
+    var cells = [];
+    var gCells = s.g();
+    var horCovers = [];
+    var gHorCovers = s.g();
+    var verCovers = [];
+    var gVerCovers = s.g();
+    var phantomCells = [];
+    var gPhantomCells = s.g();
+
+	for(var i = 0; i < 8; ++i){
+        cells.push([]);
+        phantomCells.push([]);
+        horCovers.push([]);
+        if(i < 8-1)
+            verCovers.push([]);
+
+        for(var j = 0; j < 8; ++j) {
+            cells[i].push(
+                s.rect(600 * j / 8, 600 * i / 8, 600 / 8, 600 / 8).attr({
+                    fill: (i + j) % 2 == 0 ? '#fff' : '#000',
+                    stroke: 'none',
+                    strokeWidth: 3
+                }).appendTo(gCells)
+            );
+            phantomCells[i][j] = cells[i][j].clone().attr({opacity: 0}).appendTo(gPhantomCells);
+        }
+	}
+
+	var p = s.path("M 10,-5 L -10,15 M 15,0 L 0,15 M 0,-5 L -20,15").attr({
+        fill: "none",
+        stroke: "blue",
+        strokeWidth: 3
+    }).pattern(0,0,10,10);
+
+    var p2 = s.path("M 10,15 L -10,-5 M 15,10 L 0,-5 M 0,15 L -20,-5").attr({
+        fill: "none",
+        stroke: "green",
+        strokeWidth: 3
+    }).pattern(0,0,10,10);
+
+	for(i=0; i < 8; ++i)
+	    for(j=0;j<8;++j){
+            if(i < 8-1)
+                verCovers[i].push(
+                    s.rect(600 * j / 8 + 1, 600 * i / 8 + 1, 600 / 8 - 1, 600 / 4 - 1).attr({
+                        fill: 'dimgray',
+                        stroke: '#000',
+                        strokeWidth: 3,
+                        'opacity': 0.0
+                    }).appendTo(gVerCovers)
+                );
+            if(j < 8-1)
+                horCovers[i].push(
+                    s.rect(600 * j / 8 + 1, 600 * i / 8 + 1, 600 / 4 - 1, 600 / 8 - 1).attr({
+                        fill: 'dimgrey',
+                        stroke: '#000',
+                        strokeWidth: 3,
+                        'opacity': 0.0
+                    }).appendTo(gHorCovers)
+                );
+        }
+
+    setTimeout(function(){gCells.animate({opacity: 0.2}, 500)}, 1000);
+    gPhantomCells.appendTo(s);
+
+    function clearAll(){
+        for(i = 0; i < 8; i += 1){
+            for(j = 0; j < 8; j += 1) {
+                if(i < 7)
+                    verCovers[i][j].attr({opacity: 0});
+                if(j < 7)
+                    horCovers[i][j].attr({opacity: 0});
+            }
+        }
+    }
+
+
+    $('#btnVer').click(function(evt){
+        clearAll();
+        for(i = 0; i < 7; i += 2){
+            for(j = 0; j < 8; j += 1){
+                setTimeout( function(c) { return function(){
+                    c.animate({opacity: 1}, 100);
+                }}(verCovers[i][j]), 50+40*(4*i+j));
+            }
+        }
+    });
+
+    $('#btnHor').click(function(evt){
+        clearAll();
+        for(i = 0; i < 8; i += 1){
+            for(j = 0; j < 7; j += 2){
+                setTimeout( function(c) { return function(){
+                    c.animate({opacity: 1}, 100);
+                }}(horCovers[i][j]), 50+40*(4*i+j));
+            }
+        }
+    });
+
+    $('#btnSpiral').click(function(evt){
+        clearAll();
+        var spiral = [
+                [0,0,'h'],[0,2,'h'],[0,4,'h'],[0,6,'h'],[1,7,'v'],[3,7,'v'],[5,7,'v'],[7,6,'h'],[7,4,'h'],[7,2,'h'],[7,0,'h'],
+                [5,0,'v'],[3,0,'v'],[1,0,'v'],[1,1,'h'],[1,3,'h'],[1,5,'h'],[2,6,'v'],[4,6,'v'],[6,5,'h'],[6,3,'h'],[6,1,'h'],
+                [4,1,'v'],[2,1,'v'],[2,2,'h'],[2,4,'h'],[3,5,'v'],[5,4,'h'],[5,2,'h'],[3,2,'v'],[3,3,'h'],[4,3,'h']];
+        for (var k = 0; k < 32; ++k) {
+            if(spiral[k][2] == 'h')
+                setTimeout(function (c) {
+                            return function () {
+                                c.animate({opacity: 1}, 100);
+                            }
+                        }(horCovers[spiral[k][0]][spiral[k][1]]), k * 40);
+            else
+                setTimeout(function (c) {
+                            return function () {
+                                c.animate({opacity: 1}, 100);
+                            }
+                        }(verCovers[spiral[k][0]][spiral[k][1]]), k * 40);
+        }
+    });
+
+    $('#btnManual').click( function(evt){
+        clearAll();
+        var covered = [];
+        var nCovered = 0;
+        var chosenCell = null;
+        for(var i = 0; i < 8; ++i) {covered.push([]); for(var j = 0; j < 8; ++j) {covered[i].push(false)}}
+
+        for(var i=0; i<8; ++i){
+            for(var j=0;j<8;++j){
+                phantomCells[i][j].hover(
+                    function(i,j){ return function () {
+                        var highlight;
+                        if(chosenCell) {
+                            highlight = {fill: p, opacity: 0.3};
+                            if( chosenCell.i == i-1 && chosenCell.j == j && !covered[i-1][j] && !covered[i][j] )
+                                verCovers[i-1][j].attr(highlight);
+                            if( chosenCell.i == i && chosenCell.j == j-1 && !covered[i][j-1] && !covered[i][j] )
+                                horCovers[i][j-1].attr(highlight);
+                            if( chosenCell.i == i+1 && chosenCell.j == j && !covered[i+1][j] && !covered[i][j] )
+                                verCovers[i][j].attr(highlight);
+                            if( chosenCell.i == i && chosenCell.j == j+1 && !covered[i][j+1] && !covered[i][j] )
+                                horCovers[i][j].attr(highlight);
+
+                            if(chosenCell.i != i || chosenCell.j != j)
+                                return;
+                        }
+                        highlight = {fill: p, opacity: 0.1};
+                        if( j < 7 && !covered[i][j] && !covered[i][j+1] )
+                            horCovers[i][j].attr(highlight);
+                        if( j > 0 && !covered[i][j] && !covered[i][j-1] )
+                            horCovers[i][j-1].attr(highlight);
+                        if( i < 7 && !covered[i][j] && !covered[i+1][j] )
+                            verCovers[i][j].attr(highlight);
+                        if( i > 0 && !covered[i][j] && !covered[i-1][j] )
+                            verCovers[i-1][j].attr(highlight);
+                    }}(i,j),
+                    function(i,j){ return function () {
+                        var unhighlight = {opacity: 0};
+                        if( j < 7 && !covered[i][j] && !covered[i][j+1] )
+                            horCovers[i][j].attr(unhighlight);
+                        if( j > 0 && !covered[i][j] && !covered[i][j-1] )
+                            horCovers[i][j-1].attr(unhighlight);
+                        if( i < 7 && !covered[i][j] && !covered[i+1][j] )
+                            verCovers[i][j].attr(unhighlight);
+                        if( i > 0 && !covered[i][j] && !covered[i-1][j] )
+                            verCovers[i-1][j].attr(unhighlight);
+                    }}(i,j)
+                );
+                phantomCells[i][j].click(function(i,j){ return function () {
+                    if(covered[i][j]) {
+                        chosenCell = null;
+                        return;
+                    }
+                    if(!chosenCell){
+                        chosenCell = {'i': i, 'j': j};
+                        cells[i][j].attr({fill:p});
+                        return;
+                    }
+                    var highlight = {fill: 'dimgrey', opacity: 1.0};
+
+                    if(chosenCell.i == i-1 && chosenCell.j == j) {
+                        verCovers[i-1][j].attr(highlight);
+                        covered[chosenCell.i][chosenCell.j] = covered[i][j] = true;
+                        nCovered += 2;
+                        chosenCell = null;
+                    }
+                    else if(chosenCell.i == i+1 && chosenCell.j == j) {
+                        verCovers[i][j].attr(highlight);
+                        covered[chosenCell.i][chosenCell.j] = covered[i][j] = true;
+                        nCovered += 2;
+                        chosenCell = null;
+                    }
+                    else if(chosenCell.i == i && chosenCell.j == j-1) {
+                        horCovers[i][j-1].attr(highlight);
+                        covered[chosenCell.i][chosenCell.j] = covered[i][j] = true;
+                        nCovered += 2;
+                        chosenCell = null;
+                    }
+                    else if(chosenCell.i == i && chosenCell.j == j+1) {
+                        horCovers[i][j].attr(highlight);
+                        covered[chosenCell.i][chosenCell.j] = covered[i][j] = true;
+                        nCovered += 2;
+                        chosenCell = null;
+                    }
+                    else {
+                        cells[chosenCell.i][chosenCell.j].attr({fill:(chosenCell.i + chosenCell.j) % 2 == 0 ? '#fff' : '#000'});
+                        chosenCell = {'i': i, 'j': j};
+                        cells[i][j].attr({fill:p});
+                    }
+
+                    if(nCovered == 64) {
+                        alert('Ура!');
+                        clearAll();
+                    }
+                }}(i,j));
+            }
+        }
+    });
+
+</script>
+
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.5/js/bootstrap.min.js" integrity="sha384-BLiI7JTZm+JWlgKa0M0kGRpJbF2J8q+qreVrKBC47e3K6BW78kGLrCkeRX6I9RoK" crossorigin="anonymous"></script>
+</body>
+</html>
