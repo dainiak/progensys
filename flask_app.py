@@ -490,11 +490,13 @@ def new_problem_comment(problem_id):
     db.session.commit()
     return jsonify(result='Комментарий успешно добавлен. Обновите страницу для отображения.');
 
-@app.route('/problems/<topic>/')
+@app.route('/problems/<topic>/', methods = ['GET'])
 @flask_login.login_required
 def show_problems(topic):
     if flask_login.current_user.username not in teachers:
         return 'Только преподаватели имеют доступ к этой странице'
+
+    template = request.args.get('template', '')
 
     problems = None
     if topic == 'all':
@@ -526,14 +528,13 @@ def show_problems(topic):
             'topic' : topic,
             'edit_url' : url_for('edit_problem',problem_id=p.id),
             'id' : p.id,
-            'statement' : latex_to_html(p.statement),
+            'statement' : latex_to_html(p.statement) if template != 'source' else p.statement,
             'clones' : p.clones })
 
     return render_template(
-        'multiple_problems.html',
+        'multiple_problems{}.html'.format('_'+template if template else ''),
         problems = template_problems,
         show_filter_prompt = show_filter_prompt)
-
 
 @app.route('/problem/new')
 @flask_login.login_required
