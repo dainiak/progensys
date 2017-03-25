@@ -118,7 +118,7 @@ from flask_mail import Mail, Message
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 import random
-import flask.ext.login as flask_login
+import flask_login
 
 from pulp import LpProblem, LpVariable, LpAffineExpression, LpMinimize, LpConstraint, LpStatus
 import functools, operator
@@ -132,6 +132,7 @@ app.secret_key = tpbeta_app_secret_key
 
 app.config['SQLALCHEMY_DATABASE_URI'] = tpbeta_sqlalchemy_db_uri
 app.config['SQLALCHEMY_POOL_RECYCLE'] = 280
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.config['MAIL_SERVER'] = tpbeta_mail_server
 app.config['MAIL_PORT'] = tpbeta_mail_port
@@ -1610,9 +1611,5 @@ def root():
 
     return render_template('landing.html', mode = mode)
 
-
-@app.route('/board-tiling', methods=['POST','GET'])
-def board_tiling():
-    if request.method == 'POST' and request.form['oauth_consumer_key'] == 'c0urserachessb0ardapp':
-        oauth_consumer_key = request.form['oauth_consumer_key']
-        return redirect('https://dainiak.github.io/tilings/')
+if __name__ == '__main__':
+    app.run()
