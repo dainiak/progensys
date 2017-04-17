@@ -2,15 +2,14 @@
 <html lang="ru">
 <head>
 {% block jquery_include %}
-<script src="//ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
-<link href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css" rel="Stylesheet"></link>
-<script src="//code.jquery.com/ui/1.11.4/jquery-ui.min.js" ></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<link href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css" rel="Stylesheet"></link>
+<script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js" ></script>
 {% endblock jquery_include %}
 
 {% block bootstrap_include %}
-<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
-<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
 {% endblock bootstrap_include %}
 
 {% block mathjax_include %}
@@ -98,16 +97,9 @@ MathJax.Hub.Config({
 <script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 {% endblock mathjax_include %}
 
-{% block head %}
-
-{% endblock head %}
-
+{% block head %}{% endblock head %}
 <title>{% block title %}{% endblock %}</title>
 </head>
 
-<body>
-{% block body %}
-
-{% endblock body %}
-</body>
+<body>{% block body %}{% endblock body %}</body>
 </html>
