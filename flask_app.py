@@ -1,6 +1,6 @@
 # coding=utf8
 
-from flask import Flask
+from flask import Flask, abort
 from flask import render_template, request, redirect, url_for, jsonify
 
 from flask_sqlalchemy import SQLAlchemy
@@ -18,6 +18,7 @@ from hashlib import md5 as md5hasher
 
 from json import dumps as to_json_string
 #from json import loads as from_json_string
+
 
 # Security sensitive constants are imported from a file not being synced with github
 from tpbeta_security import *
@@ -227,6 +228,7 @@ class ProblemSet(db.Model):
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    is_adhoc = db.Column(db.Boolean)
     timestamp_created = db.Column(db.DateTime)
     timestamp_last_modified = db.Column(db.DateTime)
 
@@ -283,7 +285,7 @@ class ExposureGrading(db.Model):
         self.grader_id = grader_id
 
 
-class ExposureGradingContent(db.Model):
+class ExposureGradingResult(db.Model):
     exposure_grading_id = db.Column(db.Integer, db.ForeignKey('exposure_grading.id'), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id'), primary_key=True)
@@ -293,7 +295,7 @@ class ExposureGradingContent(db.Model):
     feedback = db.Column(db.UnicodeText)
 
     def __init__(self, exposure_grading_id, user_id, problem_set_id, problem_id, problem_status_id):
-        self.exposure_id = exposure_grading_id
+        self.exposure_grading_id = exposure_grading_id
         self.user_id = user_id
         self.problem_set_id = problem_set_id
         self.problem_id = problem_id
@@ -304,6 +306,7 @@ class Trajectory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
+    suggested_course_id = db.Column(db.Integer, db.ForeignKey('course.id'))
 
 
 class TrajectoryContent(db.Model):
@@ -312,6 +315,11 @@ class TrajectoryContent(db.Model):
     topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
     sort_key = db.Column(db.Integer)
 
+    def __init__(self, trajectory_id, topic_id, sort_key=None):
+        self.trajectory_id = trajectory_id
+        self.topic_id = topic_id
+        if sort_key is not None:
+            self.sort_key = sort_key
 
 class ProblemStatus(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
@@ -546,9 +554,136 @@ def unauthorized_handler():
 
 
 # ------------------------------------------
+# Exposure view and API
+# ------------------------------------------
+@app.route('/api/exposure', methods=['POST'])
+@flask_login.login_required
+def api_exposure():
+    if flask_login.current_user.username not in tpbeta_teacher_usernames:
+        return "Login required for this URL"
+
+    json = request.get_json()
+    if not json or 'action' not in json:
+        return jsonify(error='Expected JSON format and action')
+
+    if json['action'] == 'load':
+        if not json.get('user_ids'):
+            return jsonify(error='User IDs not specified')
+        if not json.get('exposure_ids'):
+            return jsonify(error='Exposure IDs not specified')
+
+        exposure_ids = json.get('exposure_ids')
+        user_ids = json.get('user_ids')
+        db_data = db.session.query(User.name_last, User.name_first, User.id, Exposure.timestamp, Exposure.id, ExposureContent.problem_set_id).filter(User.id.in_(user_ids), Exposure.id.in_(exposure_ids), ExposureContent.user_id == User.id, ExposureContent.exposure_id == Exposure.id).all()
+        data_for_frontend = []
+
+        for user_name_last, user_name_first, user_id, exposure_timestamp, exposure_id, problem_set_id in db_data:
+            data_for_frontend.append(dict())
+            data_for_frontend[-1]['user_id'] = user_id
+            data_for_frontend[-1]['exposure_id'] = exposure_id
+            data_for_frontend[-1]['problem_set_id'] = problem_set_id
+            data_for_frontend[-1]['exposure_date'] = exposure_timestamp.isoformat()[:10]
+            data_for_frontend[-1]['learner_name'] = '{} {}'.format(user_name_last, user_name_first)
+            problem_ids = list(map(lambda x: x[0], db.session.query(ProblemSetContent.problem_id).filter(ProblemSetContent.problem_set_id == problem_set_id).order_by(ProblemSetContent.sort_key).all()))
+            graded_problems = db.session.query(ExposureGradingResult.problem_id, ExposureGradingResult.problem_status_id).filter(ExposureGrading.exposure_id == exposure_id, ExposureGradingResult.exposure_grading_id == ExposureGrading.id, ExposureGradingResult.user_id == user_id, ExposureGradingResult.problem_set_id == problem_set_id).all()
+            graded_problems = {p[0]: p[1] for p in graded_problems}
+
+            for problem_position, problem_id in enumerate(problem_ids):
+                problem_position += 1
+                data_for_frontend[-1]['p{}'.format(problem_position)] = graded_problems.get(problem_id, -problem_id)
+                data_for_frontend[-1]['pid{}'.format(problem_position)] = problem_id
+
+        return jsonify(data_for_frontend)
+
+    elif json['action'] == 'delete':
+        item = json.get('item')
+        if not item:
+            return jsonify(error='No data provided for storing the grading results')
+        user_id = item.get('user_id')
+        exposure_id = item.get('exposure_id')
+        problem_set_id = item.get('problem_set_id')
+        if None in [user_id, exposure_id, problem_set_id]:
+            return jsonify(error='Data required for deleting exposure record was not provided')
+        exposure_record = ExposureContent.query.filter_by(exposure_id=exposure_id, user_id=user_id, problem_set_id=problem_set_id).first()
+        if not exposure_record:
+            return jsonify(error='The specified exposure record was not found')
+        db.session.delete(exposure_record)
+        db.session.commit()
+        result_report = 'Deleted the exposure record.'
+        problem_set = ProblemSet.query.filter_by(id=problem_set_id).first()
+        if (problem_set.is_adhoc and not db.session.query(ExposureContent.id).filter(ExposureContent.problem_set_id == problem_set_id).first()):
+            db.session.delete(problem_set)
+            db.session.commit()
+            result_report += ' The problem set was ad hoc and not used elsewhere, so deleted it too.'
+        return jsonify(result=result_report)
+
+    elif json['action'] == 'update':
+        item = json.get('item')
+        if not item:
+            return jsonify(error='No data provided for storing the grading results')
+        grader_id = flask_login.current_user.id
+        user_id = item.get('user_id')
+        exposure_id = item.get('exposure_id')
+        problem_set_id = item.get('problem_set_id')
+        if None in [grader_id, user_id, exposure_id, problem_set_id]:
+            return jsonify(error='Data required for storing the grading result was not provided')
+
+        grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+        if not grading:
+            grading = ExposureGrading(exposure_id, grader_id)
+            grading.timestamp = datetime.now()
+            db.session.add(grading)
+            db.session.commit()
+            grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+
+        existing_grading_results = ExposureGradingResult.query.filter_by(exposure_grading_id=grading.id, user_id=user_id, problem_set_id=problem_set_id).all()
+        existing_grading_results = {egc.problem_id: egc for egc in existing_grading_results}
+
+        for field_name in item:
+            if field_name.startswith('pid'):
+                problem_no = field_name[len('pid'):]
+                problem_id = int(item[field_name])
+                problem_status_id = item.get('p{}'.format(problem_no))
+                if problem_status_id >= 0:
+                    if problem_id in existing_grading_results:
+                        existing_grading_results[problem_id].problem_status_id = problem_status_id
+                    else:
+                        grading_result = ExposureGradingResult(grading.id, user_id, problem_set_id, problem_id, problem_status_id)
+                        db.session.add(grading_result)
+                else:
+                    item['p{}'.format(problem_no)] = -problem_id
+
+        db.session.commit()
+        return jsonify(item)
+
+
+@app.route('/exposure/date-<exposure_date>', methods=['GET'])
+@flask_login.login_required
+def view_exposure_table(exposure_date):
+    if flask_login.current_user.username not in tpbeta_teacher_usernames:
+        return "Login required for this URL"
+
+    exposures = Exposure.query.all()
+    exposure_ids = list(map(attrgetter('id'), filter(lambda x: x.timestamp.isoformat()[:10] == exposure_date, exposures)))
+    if len(exposure_ids) == 0:
+        return jsonify(error='No exposures with specified date were found')
+
+    user_ids = list(map(lambda x: x[0], db.session.query(User.id).all()))
+
+    all_problems = list(map(lambda x: x[0], db.session.query(Problem.id)
+        .join(ProblemSetContent, Problem.id == ProblemSetContent.problem_id)
+        .join(ExposureContent, ExposureContent.problem_set_id == ProblemSetContent.problem_set_id)
+        .filter(ExposureContent.exposure_id.in_(exposure_ids))
+        .filter(ExposureContent.user_id.in_(user_ids))
+        .all()))
+    problem_statuses = [{'name': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
+
+    return render_template('view_exposures.html', all_problems=to_json_string(all_problems), exposure_ids=to_json_string(exposure_ids), user_ids=to_json_string(user_ids), problem_statuses=to_json_string(problem_statuses))
+
+
+# ------------------------------------------
 # Grading view and API
 # ------------------------------------------
-
 @app.route('/api/grading', methods=['POST'])
 @flask_login.login_required
 def api_grading():
@@ -576,93 +711,222 @@ def api_grading():
             data_for_frontend[-1]['exposure_id'] = exposure_id
             data_for_frontend[-1]['problem_set_id'] = problem_set_id
             data_for_frontend[-1]['exposure_date'] = exposure_timestamp.isoformat()[:10]
-            data_for_frontend[-1]['learner_name'] = '{} {}'.format(user_name_last, user_name_first)
+            data_for_frontend[-1]['learner_name'] = '{} {}'.format(user_name_last, user_name_first)
             problem_ids = list(map(lambda x: x[0], db.session.query(ProblemSetContent.problem_id).filter(ProblemSetContent.problem_set_id == problem_set_id).order_by(ProblemSetContent.sort_key).all()))
-            db.session.query(ExposureGrading)
+            graded_problems = db.session.query(ExposureGradingResult.problem_id, ExposureGradingResult.problem_status_id).filter(ExposureGrading.exposure_id == exposure_id, ExposureGradingResult.exposure_grading_id == ExposureGrading.id, ExposureGradingResult.user_id == user_id, ExposureGradingResult.problem_set_id == problem_set_id).all()
+            graded_problems = {p[0]: p[1] for p in graded_problems}
+
             for problem_position, problem_id in enumerate(problem_ids):
                 problem_position += 1
-                data_for_frontend[-1]['p{}'.format(problem_position)] = -problem_id
+                data_for_frontend[-1]['p{}'.format(problem_position)] = graded_problems.get(problem_id, -problem_id)
                 data_for_frontend[-1]['pid{}'.format(problem_position)] = problem_id
 
         return jsonify(data_for_frontend)
 
+    elif json['action'] == 'update':
+        item = json.get('item')
+        if not item:
+            return jsonify(error='No data provided for storing the grading results')
+        grader_id = flask_login.current_user.id
+        user_id = item.get('user_id')
+        exposure_id = item.get('exposure_id')
+        problem_set_id = item.get('problem_set_id')
+        if None in [grader_id, user_id, exposure_id, problem_set_id]:
+            return jsonify(error='Data required for storing the grading result was not provided')
 
-@app.route('/grading/exposure-<date>/group-<group>', methods=['GET'])
+        grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+        if not grading:
+            grading = ExposureGrading(exposure_id, grader_id)
+            grading.timestamp = datetime.now()
+            db.session.add(grading)
+            db.session.commit()
+            grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+
+        existing_grading_results = ExposureGradingResult.query.filter_by(exposure_grading_id=grading.id, user_id=user_id, problem_set_id=problem_set_id).all()
+        existing_grading_results = {egc.problem_id: egc for egc in existing_grading_results}
+
+        for field_name in item:
+            if field_name.startswith('pid'):
+                problem_no = field_name[len('pid'):]
+                problem_id = int(item[field_name])
+                problem_status_id = item.get('p{}'.format(problem_no))
+                if problem_status_id >= 0:
+                    if problem_id in existing_grading_results:
+                        existing_grading_results[problem_id].problem_status_id = problem_status_id
+                    else:
+                        grading_result = ExposureGradingResult(grading.id, user_id, problem_set_id, problem_id, problem_status_id)
+                        db.session.add(grading_result)
+                else:
+                    item['p{}'.format(problem_no)] = -problem_id
+
+        db.session.commit()
+        return jsonify(item)
+
+
+@app.route('/grading/date-<exposure_date>/group-<group>', methods=['GET'])
+@app.route('/grading/date-<exposure_date>', methods=['GET'])
 @flask_login.login_required
-def edit_group_table(group, date):
+def view_grading_table(exposure_date, group=None):
     if flask_login.current_user.username not in tpbeta_teacher_usernames:
         return "Login required for this URL"
 
-    if not db.session.query(db.exists().where(Group.code == group)).scalar():
+    if group is not None and not db.session.query(db.exists().where(Group.code == group)).scalar():
         return jsonify(error='Group not found')
 
     exposures = Exposure.query.all()
-    exposure_ids = list(map(attrgetter('id'), filter(lambda x: x.timestamp.isoformat()[:10] == date, exposures)))
+    exposure_ids = list(map(attrgetter('id'), filter(lambda x: x.timestamp.isoformat()[:10] == exposure_date, exposures)))
     if len(exposure_ids) == 0:
         return jsonify(error='No exposures with specified date were found')
 
-    group_id = Group.query.filter_by(code=group).first().id
+    if group is not None:
+        group_id = Group.query.filter_by(code=group).first().id
 
-    user_ids = list(map(lambda x: x[0],
-        db.session.query(User.id).join(GroupMembership, GroupMembership.user_id == User.id)
-        .filter(GroupMembership.group_id == group_id)
-        .all()))
+        user_ids = list(map(lambda x: x[0],
+            db.session.query(User.id)
+            .filter(
+                GroupMembership.group_id == group_id,
+                GroupMembership.user_id == User.id,
+                ExposureContent.exposure_id.in_(exposure_ids),
+                ExposureContent.user_id == User.id)
+            .all()))
+    else:
+        user_ids = list(map(lambda x: x[0], db.session.query(User.id).all()))
 
-    all_problems = list(map(lambda x: x[0], db.session.query(Problem.id) \
-        .join(ProblemSetContent, Problem.id == ProblemSetContent.problem_id) \
-        .join(ExposureContent, ExposureContent.problem_set_id == ProblemSetContent.problem_set_id) \
-        .filter(ExposureContent.exposure_id.in_(exposure_ids)) \
-        .filter(ExposureContent.user_id.in_(user_ids))\
+    all_problems = list(map(lambda x: x[0], db.session.query(Problem.id)
+        .filter(
+            Problem.id == ProblemSetContent.problem_id,
+            ExposureContent.problem_set_id == ProblemSetContent.problem_set_id,
+            ExposureContent.exposure_id.in_(exposure_ids),
+            ExposureContent.user_id.in_(user_ids))
         .all()))
     problem_statuses = [{'name': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
-    return render_template('view_edit_results.html', all_problems=to_json_string(all_problems), exposure_ids=to_json_string(exposure_ids), user_ids=to_json_string(user_ids), problem_statuses=to_json_string(problem_statuses))
+    return render_template('view_grading_results.html', all_problems=to_json_string(all_problems), exposure_ids=to_json_string(exposure_ids), user_ids=to_json_string(user_ids), problem_statuses=to_json_string(problem_statuses))
 
 
-    test_log_items = db.session.query(TestLog) \
-        .filter(TestLog.test_number == test_number) \
-        .join(Learner, Learner.user_id == TestLog.user) \
-        .join(AcademicGroup, Learner.academic_group == AcademicGroup.id) \
-        .filter(AcademicGroup.number == group_number) \
-        .all()
+# ------------------------------------------
+# Trajectory view and API
+# ------------------------------------------
+@app.route('/api/trajectory', methods=['POST'])
+@flask_login.login_required
+def api_trajectory():
+    if flask_login.current_user.username not in tpbeta_teacher_usernames:
+        return "Login required for this URL"
 
-    if len(test_log_items) == 0:
-        return 'Похоже, тест с таким номером ещё не проводился: о нём нет информации в базе данных.'
+    json = request.get_json()
+    if not json or 'action' not in json:
+        return jsonify(error='Expected JSON format and action')
 
-    test_history = History.query.filter_by(comment='TEST{0}'.format(test_number)) \
-        .join(Learner, Learner.user_id == History.user) \
-        .join(AcademicGroup, Learner.academic_group == AcademicGroup.id) \
-        .filter(AcademicGroup.number == group_number) \
-        .all()
+    if json['action'] == 'load':
+        if not json.get('trajectory_id'):
+            return jsonify(error='Trajectory ID not specified')
 
-    items = []
-    for log in test_log_items:
-        if len(log.problems) == 0:
-            continue
-        u = User.query.filter_by(id=log.user).first()
-        result_translator = {'SEEN': '∅', 'TRIED': '□', 'ALMOST': '◩', 'SUCCESS': '■'}
-        u_history = {h.problem: result_translator[h.event] for h in test_history if
-                     h.user == u.id and h.event in result_translator}
-        problem_ids = list(map(int, log.problems.split(',')))
-        results = [''] * len(problem_ids)
-        for i, p in enumerate(problem_ids):
-            if p in u_history:
-                results[i] = u_history[p]
-            else:
-                results[i] = str(problem_ids[i])
-        items.append(dict(name='{0} {1}'.format(u.lastname, u.firstname), id=u.id, marks=[{'id': problem_ids[i], 'result': results[i]} for i in range(len(results))]))
-    max_problems = max(len(x['marks']) for x in items)
-    for x in items:
-        if len(x['marks']) < max_problems:
-            x['marks'] += [''] * (max_problems - len(x['marks']))
+        trajectory_id = json['trajectory_id']
 
-    return render_template(
-        'result_table_snippet.html',
-        user=flask_login.current_user.username,
-        group=group_number,
-        test=test_number,
-        student_results=items,
-        problem_labels=list(range(1, max_problems + 1)))
+        data = sorted(db.session.query(TrajectoryContent.sort_key, TrajectoryContent.id, TrajectoryContent.topic_id, Topic.code).filter(TrajectoryContent.trajectory_id == trajectory_id, Topic.id == TrajectoryContent.topic_id).all())
+        result = []
+        for sort_key, id, topic_id, topic_code in data:
+            result.append({
+                'sort_key': sort_key,
+                'id': id,
+                'topic_id': topic_id,
+                'topic_code': topic_code
+            })
+
+        return jsonify(result)
+
+    elif json['action'] == 'reorder':
+        if not json.get('trajectory_id') or not json.get('ids'):
+            return jsonify(error='Trajectory ID or reordering not specified')
+
+        trajectory_id = json['trajectory_id']
+        new_order = json['ids']
+        items = {tc.id: tc for tc in db.session.query(TrajectoryContent).filter(TrajectoryContent.trajectory_id == trajectory_id, TrajectoryContent.id.in_(new_order)).all()}
+
+        for i, item_id in enumerate(new_order):
+            items[item_id].sort_key = 10 * (i + 1)
+
+        db.session.commit()
+        return jsonify(result='Successfuly reordered items')
+
+    elif json['action'] == 'insert':
+        if not json.get('trajectory_id'):
+            return jsonify(error='Trajectory ID not specified')
+        if not json.get('topic_id') and not json.get('topic_code'):
+            return jsonify(error='Neither topic ID not code is specified')
+        trajectory_id = json['trajectory_id']
+        sort_key = json.get('sort_key')
+        topic_id = json.get('topic_id')
+        topic_code = json.get('topic_code')
+        if not topic_code:
+            topic_code = Topic.query.filter_by(id=topic_id).first().code
+        elif not topic_id:
+            topic_id = Topic.query.filter_by(code=topic_code).first().id
+        tc = TrajectoryContent(trajectory_id, topic_id, sort_key)
+        db.session.add(tc)
+        db.session.commit()
+
+        return jsonify(id=tc.id, topic_id=tc.topic_id, topic_code=topic_code, sort_key=tc.sort_key)
+
+    elif json['action'] == 'update':
+        if not json.get('trajectory_id'):
+            return jsonify(error='Trajectory ID not specified')
+        if not json.get('id'):
+            return jsonify(error='Item ID not specified')
+        if not json.get('topic_id') and not json.get('topic_code'):
+            return jsonify(error='Neither topic ID not code is specified')
+
+        sort_key = json.get('sort_key')
+        topic_id = json.get('topic_id')
+        topic_code = json.get('topic_code')
+        if not topic_code:
+            topic_code = Topic.query.filter_by(id=topic_id).first().code
+        elif not topic_id:
+            topic_id = Topic.query.filter_by(code=topic_code).first().id
+        tc = TrajectoryContent.query.filter_by(trajectory_id=json['trajectory_id'], id=json['id']).first()
+        if not tc:
+            abort(400, 'Specified item not found or does not belong to the trajectory')
+        tc.topic_id = topic_id
+        tc.sort_key = sort_key
+        db.session.commit()
+
+        return jsonify(id=tc.id, topic_id=tc.topic_id, topic_code=topic_code, sort_key=tc.sort_key)
+
+    elif json['action'] == 'delete':
+        if not json.get('id'):
+            return jsonify(error='ID not specified')
+        tc = TrajectoryContent.query.filter_by(id=json['id']).first()
+        if not tc:
+            return jsonify(error='Item with specified ID not found')
+        db.session.delete(tc)
+        db.session.commit()
+        return jsonify(result='Item successfuly deleted')
+
+    abort(400, 'Your request should be insert/delete/reorder')
+
+
+@app.route('/trajectory/trajectory-<int:trajectory_id>', methods=['GET'])
+@flask_login.login_required
+def view_trajectory(trajectory_id):
+    if flask_login.current_user.username not in tpbeta_teacher_usernames:
+        return "Login required for this URL"
+    return render_template('view_trajectory.html', trajectory_id=trajectory_id)
+
+
+@app.route('/api/autocomplete/topic_code', methods=['POST'])
+def autocomplete_topic_code():
+    query = request.get_json('query')
+    topic_codes = db.session.query(Topic.code).filter(Topic.code.like('%' + str(query) + '%')).all()
+    return jsonify(matches=[item[0] for item in topic_codes])
+
+
+@app.route('/api/topic/code_to_id', methods=['POST'])
+def topic_code_to_id():
+    print(request.get_json('topic_code'))
+    topic_id = db.session.query(Topic.id).filter(Topic.code == request.get_json('topic_code')).first()
+    if topic_id:
+        topic_id = topic_id[0]
+    return jsonify(topic_id=topic_id)
 
 
 @app.route('/api/problem_management')
@@ -814,8 +1078,8 @@ def update_problem(problem_id):
     if flask_login.current_user.username not in teachers:
         return jsonify(result="You need to be logged in as a teacher to update problem database")
 
-    p = Problem.query.filter_by(id=problem_id).first();
-    p.statement = request.json['statement'];
+    p = Problem.query.filter_by(id=problem_id).first()
+    p.statement = request.json['statement']
     p.last_modified = datetime.now()
     clones = set(request.json['clones'].strip().split(','))
     if all(x.isdecimal() for x in clones):
@@ -873,13 +1137,6 @@ def edit_trajectory():
     if num_added_new_topics > 0:
         return jsonify(result='Траектория успешно обновлена; добавлено {0} новых тем.'.format(num_added_new_topics))
     return jsonify(result='Траектория успешно обновлена.')
-
-
-@app.route('/autocomplete/topics', methods=['GET'])
-def autocomplete_topics():
-    search = request.args.get('q')
-    query = db.session.query(Topic.topic).filter(Topic.topic.like('%' + str(search) + '%'))
-    return jsonify(matching_results=[itm[0] for itm in query.all()])
 
 
 @app.route('/latex_to_html', methods=['POST'])
@@ -1891,4 +2148,3 @@ def root():
 
 if __name__ == '__main__':
     app.run()
-    # db.create_all()

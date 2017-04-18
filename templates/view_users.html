@@ -20,12 +20,47 @@
                 paging: false,
                 autoload: true,
                 fields: [
-                    {title: "Username", name: "username", type: "text"},
-                    {title: "E-mail", name: "email", type: "text"},
-                    {title: "Фамилия", name: "name_last", type: "text"},
-                    {title: "Имя", name: "name_first", type: "text"},
-                    {title: "Отчество", name: "name_middle", type: "text"},
-                    {type: "control", modeSwitchButton: false, editButton: true}
+                    {
+                        title: "Username",
+                        name: "username",
+                        type: "text",
+                        validate: {
+                            validator: "pattern",
+                            param: "(\\w|\\d|[ йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮЁ_-]){0,50}"
+                        }
+                    },
+                    {
+                        title: "E-mail",
+                        name: "email",
+                        type: "text",
+                        validate: [
+                            "required",
+                            function(value) {
+                                var re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+                                return re.test(value);
+                            }
+                        ]
+                    },
+                    {
+                        title: "Фамилия",
+                        name: "name_last",
+                        type: "text"
+                    },
+                    {
+                        title: "Имя",
+                        name: "name_first",
+                        type: "text"
+                    },
+                    {
+                        title: "Отчество",
+                        name: "name_middle",
+                        type: "text"
+                    },
+                    {
+                        type: "control",
+                        modeSwitchButton: false,
+                        editButton: true
+                    }
                 ],
 
                 controller: {

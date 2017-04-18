@@ -17,21 +17,11 @@
                 var list = [];
 
                 for(var i = 1; i <= 5; ++i){
-                    var items = {{ problem_statuses | safe }};
-                    for( var j = 0; j < all_problems.length; ++j ){
-                        items.push({
-                            name: "(" + all_problems[j].toString() + ")",
-                            id: -all_problems[j]
-                        });
-                    }
-
                     list.push({
                         title: "Задача " + i.toString(),
-                        name: "p" + i.toString(),
-                        type: "select",
-                        items: items,
-                        valueField: "id",
-                        textField: "name"
+                        name: "pid" + i.toString(),
+                        type: "text",
+                        readOnly: true
                     });
                 }
                 return list;
@@ -39,12 +29,39 @@
 
             var problemFields = getSingleProblemFields();
             var fields = [
-                        {title: "ID теста", name: "exposure_id", type: "number", readOnly: true},
-                        {title: "Дата", name: "exposure_date", type: "text", readOnly: true},
-                        {title: "Студент", name: "learner_name", type: "text", readOnly: true},
-                        {title: "ID набора", name: "problem_set_id", type: "number", readOnly: true},
-                    ].concat(problemFields).concat([{type: "control", modeSwitchButton: false, editButton: true}]);
-            console.log(JSON.stringify(fields.length));
+                        {
+                            title: "ID теста",
+                            name: "exposure_id",
+                            itemTemplate: function(value) {
+                                return $("<span>").text(value);
+                            },
+                            filtering: false
+                        },
+                        {
+                            title: "Дата",
+                            name: "exposure_date",
+                            itemTemplate: function(value) {
+                                return $("<span>").text(value);
+                            },
+                            filtering: false
+                        },
+                        {
+                            title: "Студент",
+                            name: "learner_name",
+                            itemTemplate: function(value) {
+                                return $("<span>").text(value);
+                            },
+                            filtering: false
+                        },
+                        {
+                            title: "ID набора",
+                            name: "problem_set_id",
+                            itemTemplate: function(value) {
+                                return $("<span>").text(value);
+                            },
+                            filtering: false
+                        }
+                    ].concat(problemFields).concat([{type: "control", modeSwitchButton: false, editButton: true, deleteButton: true}]);
 
             $("#jsGrid").jsGrid({
                 width: "100%",
@@ -71,20 +88,10 @@
                                 user_ids: user_ids})
                         });
                     },
-                    updateItem: function (item) {
-                        console.log(item);
-                        return $.ajax({
-                            type: "POST",
-                            url: "/api/grading",
-                            contentType: "application/json",
-                            dataType: "json",
-                            data: JSON.stringify({action: 'update', item: item})
-                        });
-                    },
                     deleteItem: function (item) {
                         return $.ajax({
                             type: "POST",
-                            url: "/api/grading",
+                            url: "/api/exposure",
                             contentType: "application/json",
                             dataType: "json",
                             data: JSON.stringify({action: 'delete', item: item})

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Результаты{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script>
+        $(function () {
+            var fields = [
+                {
+                    title: "порядковый номер",
+                    name: "sort_key",
+                    type: "number",
+                    filtering: false
+                },
+                {
+                    title: "ID темы",
+                    name: "topic_id",
+                    itemTemplate: function(value) {
+                        return $("<span>").text(value);
+                    },
+                    filtering: false
+                },
+                {
+                    title: "Код темы",
+                    name: "topic_code",
+                    type: "text",
+                    filtering: false,
+                    insertTemplate: function(value) {
+                        return this._insertInput = $("<input>").autocomplete({
+                            mustMatch: true,
+                            minLength: 2,
+                            source: function(request, response) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "{{ url_for('autocomplete_topic_code') }}",
+                                    contentType: "application/json",
+                                    dataType: "json",
+                                    data: JSON.stringify(request.term),
+                                    success: function(data) {
+                                        response(data.matches);
+                                    }
+                                });
+                            }
+                        });
+                    },
+                    insertValue: function() {
+                        return this._insertInput.val();
+                    }
+                },
+                {
+                    type: "control",
+                    modeSwitchButton: false,
+                    editButton: true,
+                    deleteButton: true
+                }
+            ];
+
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                inserting: true,
+                heading: true,
+                editing: true,
+                filtering: false,
+                sorting: false,
+                paging: false,
+                autoload: true,
+                fields: fields,
+                controller: {
+                    loadData: function (filter) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/trajectory",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'load',
+                                filter: filter,
+                                trajectory_id: {{ trajectory_id }}
+                            })
+                        });
+                    },
+                    insertItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/trajectory",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'insert',
+                                topic_id: item.topic_id,
+                                topic_code: item.topic_code,
+                                sort_key: item.sort_key,
+                                trajectory_id: {{ trajectory_id }}
+                            })
+                        });
+                    },
+                    updateItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/trajectory",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'update',
+                                id: item.id,
+                                topic_code: item.topic_code,
+                                sort_key: item.sort_key,
+                                trajectory_id: {{ trajectory_id }}
+                            })
+                        }).done(function() {
+                            $("#jsGrid").jsGrid("loadData");
+                        });
+                    },
+                    deleteItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/trajectory",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({action: 'delete', id: item.id, trajectory_id: {{ trajectory_id }} })
+                        });
+                    }
+                },
+                onRefreshed: function() {
+                    var $gridData = $("#jsGrid .jsgrid-grid-body tbody");
+
+                    $gridData.sortable({
+                        update: function(e, ui) {
+                            var reordered_ids = $.map($gridData.find("tr"), function(row) {
+                                return $(row).data("JSGridItem").id;
+                            });
+
+                            $.ajax({
+                                type: "POST",
+                                url: "/api/trajectory",
+                                contentType: "application/json",
+                                dataType: "json",
+                                data: JSON.stringify({action: 'reorder', trajectory_id: {{ trajectory_id }}, ids: reordered_ids})
+                            }).done(function() {
+                                alert('Результаты переупорядочения сохранены');
+                                $("#jsGrid").jsGrid("loadData");
+                            }).fail(function() {
+                                alert('Не удалось сохранить переупорядочение.');
+                                $("#jsGrid").jsGrid("loadData");
+
+                            });
+                        }
+                    });
+                },
+                onItemInserting: function(args) {
+                    if(!args.item.topic_id && !args.item.topic_code) {
+                        args.cancel = true;
+                        alert("Specify either code or ID of the topic!");
+                    }
+                },
+                onItemInserted: function(args) {
+                    $("#jsGrid").jsGrid("sort", {field: "sort_key"});
+                }
+            });
+        })
+        ;
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <div id="jsGrid"></div>
+{% endblock body %}

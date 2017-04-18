@@ -50,7 +50,7 @@ $(function(){
         mustMatch: true,
         source: function(request, response) {
             $.getJSON("{{ url_for('autocomplete_topics') }}",{
-                q: request.term,
+                query_string: request.term,
             }, function(data) {
                 response(data.matching_results);
             });
