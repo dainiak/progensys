@@ -1,6 +1,7 @@
 # coding=utf8
 
 from flask import Flask, abort
+from flask_api import status as http_status_codes
 from flask import render_template, request, redirect, url_for, jsonify
 
 from flask_sqlalchemy import SQLAlchemy
@@ -86,6 +87,7 @@ class User(db.Model, flask_login.UserMixin):
     name_last = db.Column(db.Unicode(80))
     name_middle = db.Column(db.Unicode(80))
     email = db.Column(db.Unicode(80))
+    current_course_id = 0
 
     def __repr__(self):
         return '<User {0}>'.format(self.username)
@@ -513,45 +515,7 @@ def api_user_management():
             db.session.commit()
             return jsonify(result='Success')
 
-    return jsonify(error='Action not supported')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    already_logged = False
-    login_successful = False
-    bad_login = False
-    username = ''
-    if request.method == 'GET':
-        if flask_login.current_user is not None and hasattr(flask_login.current_user, 'username'):
-            already_logged = True
-            username = flask_login.current_user.username
-    else:
-        user = User.query.filter_by(username=request.form['username']).first()
-        if user is not None and hasattr(user, 'password_hash') and md5(request.form['pw']) == user.password_hash:
-            flask_login.login_user(user)
-            login_successful = True
-            username = request.form['username']
-        else:
-            bad_login = True
-
-    return render_template(
-        'login.html',
-        already_logged=already_logged,
-        login_successful=login_successful,
-        bad_login=bad_login,
-        username=username)
-
-
-@app.route('/api/logout')
-def logout():
-    flask_login.logout_user()
-    return redirect(url_for('login'))
-
-
-@login_manager.unauthorized_handler
-def unauthorized_handler():
-    return redirect(url_for('login'))
+    abort(400, 'Action not supported')
 
 
 # ------------------------------------------
@@ -653,13 +617,11 @@ def api_exposure():
         db.session.commit()
         result_report = 'Deleted the exposure record.'
         problem_set = ProblemSet.query.filter_by(id=problem_set_id).first()
-        if (problem_set.is_adhoc
-            and not db.session.query(
-                ExposureContent.id
-            ).filter(
-                ExposureContent.problem_set_id == problem_set_id
-            ).first()
-                ):
+        if (problem_set.is_adhoc and not db.session.query(
+                    ExposureContent.id
+                ).filter(
+                    ExposureContent.problem_set_id == problem_set_id
+                ).first()):
             db.session.delete(problem_set)
             db.session.commit()
             result_report += ' The problem set was ad hoc and not used elsewhere, so deleted it too.'
@@ -684,7 +646,11 @@ def api_exposure():
             db.session.commit()
             grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
 
-        existing_grading_results = ExposureGradingResult.query.filter_by(exposure_grading_id=grading.id, user_id=user_id, problem_set_id=problem_set_id).all()
+        existing_grading_results = ExposureGradingResult.query.filter_by(
+            exposure_grading_id=grading.id,
+            user_id=user_id,
+            problem_set_id=problem_set_id
+        ).all()
         existing_grading_results = {egc.problem_id: egc for egc in existing_grading_results}
 
         for field_name in item:
@@ -846,7 +812,11 @@ def api_grading():
             db.session.commit()
             grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
 
-        existing_grading_results = ExposureGradingResult.query.filter_by(exposure_grading_id=grading.id, user_id=user_id, problem_set_id=problem_set_id).all()
+        existing_grading_results = ExposureGradingResult.query.filter_by(
+            exposure_grading_id=grading.id,
+            user_id=user_id,
+            problem_set_id=problem_set_id
+        ).all()
         existing_grading_results = {egc.problem_id: egc for egc in existing_grading_results}
 
         for field_name in item:
@@ -955,10 +925,10 @@ def api_trajectory():
             Topic.id == TrajectoryContent.topic_id
         ).all())
         result = []
-        for sort_key, id, topic_id, topic_code in data:
+        for sort_key, item_id, topic_id, topic_code in data:
             result.append({
                 'sort_key': sort_key,
-                'id': id,
+                'id': item_id,
                 'topic_id': topic_id,
                 'topic_code': topic_code
             })
@@ -982,7 +952,7 @@ def api_trajectory():
             items[item_id].sort_key = 10 * (i + 1)
 
         db.session.commit()
-        return jsonify(result='Successfuly reordered items')
+        return jsonify(result='Successfully reordered items')
 
     elif json['action'] == 'insert':
         if not json.get('trajectory_id'):
@@ -1055,13 +1025,42 @@ def autocomplete_topic_code():
     return jsonify(matches=[item[0] for item in topic_codes])
 
 
-@app.route('/api/topic/code_to_id', methods=['POST'])
-def topic_code_to_id():
-    print(request.get_json('topic_code'))
-    topic_id = db.session.query(Topic.id).filter(Topic.code == request.get_json('topic_code')).first()
-    if topic_id:
-        topic_id = topic_id[0]
-    return jsonify(topic_id=topic_id)
+# ------------------------------------------
+# Courses view and API
+# ------------------------------------------
+@app.route('/api/courses', methods=['POST'])
+def api_courses():
+    if not flask_login.current_user or not flask_login.current_user.username:
+        abort(400)
+    username = flask_login.current_user.username
+    data = db.session.query(
+        Course.id,
+        Course.title,
+        Course.description,
+        Role.title,
+        Role.description
+    ).filter(
+        User.username == username,
+        Participant.user_id == User.id,
+        Participant.course_id == Course.id,
+        Role.id == Participant.role_id
+    ).all()
+
+    return jsonify(list(
+        {
+            'course_id': course_id,
+            'course_title': course_title,
+            'course_description': course_description,
+            'role_title': role_title,
+            'role_description': role_description
+        }
+        for course_id, course_title, course_description, role_title, role_description in data
+    ))
+
+
+@app.route('/courses', methods=['GET'])
+def view_courses():
+    return render_template('view_available_courses.html')
 
 
 @app.route('/api/problem_management')
@@ -2269,16 +2268,84 @@ def view_comments():
     return render_template('view_all_comments.html', comments=comments_processed)
 
 
+# ------------------------------------------
+# Authorization and landing
+# ------------------------------------------
 @app.route('/')
 def root():
     if not flask_login.current_user or not hasattr(flask_login.current_user, 'username'):
-        mode = ''
-    elif flask_login.current_user.username in teachers:
-        mode = 'teacher'
+        return redirect('/login')
+    elif flask_login.current_user.current_course_id:
+        return redirect('/course-{}'.format(flask_login.current_user.current_course_id))
     else:
-        mode = 'learner'
+        return redirect('/courses')
 
-    return render_template('landing.html', mode=mode)
+
+@app.route('/api/authorization', methods=['POST'])
+def api_authorization():
+    json = request.get_json()
+    if not json:
+        abort(400)
+    if json.get('action') == 'login' and json.get('username'):
+        user = User.query.filter_by(username=json.get('username')).first()
+        if user is not None and hasattr(user, 'password_hash') and md5(json.get('password')) == user.password_hash:
+            flask_login.login_user(user)
+            return jsonify('Logged in'), http_status_codes.HTTP_200_OK
+        else:
+            abort(401)
+
+    elif json.get('action') == 'logout':
+        flask_login.logout_user()
+        return jsonify('Logged out'), http_status_codes.HTTP_200_OK
+
+    elif json.get('action') == 'get_authorized_user':
+        if flask_login.current_user:
+            return jsonify({
+                'id': flask_login.current_user.id,
+                'username': flask_login.current_user.username,
+                'name_first': flask_login.current_user.name_first,
+                'name_last': flask_login.current_user.name_last
+            }), http_status_codes.HTTP_200_OK
+        return jsonify({
+            'id': 0,
+            'username': None
+        }), http_status_codes.HTTP_200_OK
+
+    abort(400)
+
+
+@app.route('/login', methods=['GET'])
+def login():
+    if request.method == 'GET':
+        if flask_login.current_user is not None and hasattr(flask_login.current_user, 'username'):
+            already_logged = True
+            username = flask_login.current_user.username
+    else:
+        user = User.query.filter_by(username=request.form['username']).first()
+        if user is not None and hasattr(user, 'password_hash') and md5(request.form['pw']) == user.password_hash:
+            flask_login.login_user(user)
+            login_successful = True
+            username = request.form['username']
+        else:
+            bad_login = True
+
+    return render_template(
+        'login.html',
+        already_logged=already_logged,
+        login_successful=login_successful,
+        bad_login=bad_login,
+        username=username)
+
+
+@app.route('/api/logout')
+def logout():
+    flask_login.logout_user()
+    return redirect(url_for('login'))
+
+
+@login_manager.unauthorized_handler
+def unauthorized_handler():
+    return redirect(url_for('login'))
 
 
 if __name__ == '__main__':

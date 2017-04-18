@@ -99,9 +99,27 @@ MathJax.Hub.Config({
 <script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 {% endblock mathjax_include %}
 
+<script type="text/javascript">
+    $(function(){
+        $.ajax({
+            type: "POST",
+            url: "/api/authorization",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({
+                action: 'get_authorized_user'
+            })
+        }).done(function (user) {
+            if(user && user.id) {
+                $('#userHeader').text('Вы находитесь в системе под именем “' + user.name_first + ' ' + user.name_last + '”')
+            }
+        })
+    });
+</script>
+
 {% block head %}{% endblock head %}
 <title>{% block title %}{% endblock %}</title>
 </head>
 
-<body>{% block body %}{% endblock body %}</body>
+<body><div id="userHeader" style="width: 100%"></div>{% block body %}{% endblock body %}</body>
 </html>
