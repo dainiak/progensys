@@ -11,10 +11,11 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/mode-latex.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/theme-chrome.js"></script>
 
+    <script src="/static/js/jquery.toaster.js"></script>
 
     <script>
         $(function () {
-            var $textarea = $('#editProblemModal textarea.ace-area');
+            var $textarea = $('#problemStatementArea');
             var editor = ace.edit($textarea[0]);
             editor.$blockScrolling = Infinity;
             editor.setOptions({
@@ -53,6 +54,13 @@
 
             function editProblemDetails(item){
                 editor.setValue(item.problem_statement_raw);
+                $('#topicCodesArea').val(item.topic_codes);
+                if(item.isNew){
+                    $('#editProblemModal .modal-title').text('Добавление новой задачи');
+                }
+                else {
+                    $('#editProblemModal .modal-title').text('Редактирование задачи #' + item.problem_id.toString());
+                }
                 $('#editProblemModal').modal('show');
                 $('#editProblemModal')[0].currentItem = item;
                 editor.resize();
@@ -65,29 +73,36 @@
                 $('#editProblemModal').modal('hide');
             });
 
-            function saveProblemChanges(){
+            function saveProblemChanges(closeModal){
                 var item = $('#editProblemModal')[0].currentItem;
                 if(!item) {
                     return null;
                 }
-                var problem_statement_raw = editor.getValue();
+
                 $.extend(item, {
-                    problem_statement_raw: problem_statement_raw
+                    problem_statement_raw: editor.getValue(),
+                    topic_codes: $('#topicCodesArea').val()
                 });
 
-                $("#jsGrid").jsGrid("updateItem", item);
+                if (closeModal) {
+                    $('#editProblemModal')[0].currentItem = null;
+                    $('#editProblemModal').modal('hide')
+                }
+                if(item.isNew)
+                    $("#jsGrid").jsGrid("insertItem", item);
+                else
+                    $("#jsGrid").jsGrid("updateItem", item);
             }
 
             $('#editProblemModal button.button-save-changes').click(function(){
-                saveProblemChanges();
+                saveProblemChanges(false);
             });
 
             $('#editProblemModal button.button-save-and-close').click(function(){
-                saveProblemChanges();
-                $('#editProblemModal')[0].currentItem = null;
-                $('#editProblemModal').modal('hide')
+                saveProblemChanges(true);
             });
 
+            $.toaster({settings : {'toaster': { 'css': {'width': '100%'}}}});
 
             var fields = [
                 {
@@ -121,14 +136,23 @@
                     type: "control",
                     modeSwitchButton: false,
                     editButton: true,
-                    width: 5
+                    width: 5,
+                    headerTemplate: function() {
+                        return $("<button>")
+                            .attr("type", "button")
+                            .addClass('btn')
+                            .addClass('btn-secondary')
+                            .html('<i class="fa fa-plus" aria-hidden="true"></i>')
+                            .on("click", function () {
+                                editProblemDetails({isNew: true, problem_statement_raw: '', topic_codes: ''});
+                            });
+                    }
                 }
             ];
 
             $("#jsGrid").jsGrid({
                 width: "100%",
                 height: "auto",
-                inserting: false,
                 heading: true,
                 editing: true,
                 filtering: true,
@@ -139,6 +163,13 @@
                 fields: fields,
                 controller: {
                     loadData: function (filter) {
+                        if (filter.pageIndex) {
+                            filter.page_index = filter.pageIndex;
+                        }
+                        if (filter.pageSize) {
+                            filter.page_size = filter.pageSize;
+                        }
+
                         return $.ajax({
                             type: "POST",
                             url: "/api/problems",
@@ -150,8 +181,76 @@
                             })
                         });
                     },
+                    deleteItem: function (item) {
+                          return $.ajax({
+                            type: "POST",
+                            url: "/api/problems",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'delete',
+                                problem_id: item.problem_id
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Задача удалена',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось удалить задачу из базы данных',
+                                priority : 'danger'
+                            });
+                        });
+                    },
                     updateItem: function (item) {
-                        return item;
+                          return $.ajax({
+                            type: "POST",
+                            url: "/api/problems",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'update',
+                                item: item
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Задача успешно обновлена',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    insertItem: function (item) {
+                          return $.ajax({
+                            type: "POST",
+                            url: "/api/problems",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'insert',
+                                item: item
+                            })
+                        }).done(function (response) {
+                            $.toaster({
+                                message : 'Задача сохранена в базе под номером ' + response.problem_id.toString(),
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    }
+                },
+                onItemInserted: function (args) {
+                    if($('#editProblemModal')[0].currentItem){
+                        editProblemDetails(args.item);
                     }
                 },
                 rowClick: function(args){
@@ -185,7 +284,14 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <textarea class="ace-area"></textarea>
+                    <div class="form-group">
+                        <label for="problemStatementArea">Условие задачи:</label>
+                        <textarea id="problemStatementArea" class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="topicCodesArea">Коды тем:</label>
+                        <textarea id="topicCodesArea" class="form-control"></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary button-cancel-editing">Отмена</button>
