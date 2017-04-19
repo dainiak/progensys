@@ -11,40 +11,10 @@
         $(function () {
             var fields = [
                 {
-                    title: "ID курса",
-                    name: "course_id",
-                    type: "number",
-                    filtering: false
-                },
-                {
-                    title: "Название курса",
-                    name: "course_title",
+                    title: "Действие",
+                    name: "title",
                     itemTemplate: function(value, item) {
-                        return $("<a>").attr('href', '/course-' + item.course_id.toString()).text(value);
-                    },
-                    filtering: false
-                },
-                {
-                    title: "Описание курса",
-                    name: "course_description",
-                    itemTemplate: function(value) {
-                        return $("<span>").text(value);
-                    },
-                    filtering: false
-                },
-                {
-                    title: "Роль",
-                    name: "role_title",
-                    itemTemplate: function(value) {
-                        return $("<span>").text(value);
-                    },
-                    filtering: false
-                },
-                {
-                    title: "Описание роли",
-                    name: "role_description",
-                    itemTemplate: function(value) {
-                        return $("<span>").text(value);
+                        return $("<a>").attr('href', item.url).text(value);
                     },
                     filtering: false
                 }
@@ -57,7 +27,7 @@
                 heading: true,
                 editing: false,
                 filtering: false,
-                sorting: true,
+                sorting: false,
                 paging: false,
                 autoload: true,
                 fields: fields,
@@ -69,7 +39,8 @@
                             contentType: "application/json",
                             dataType: "json",
                             data: JSON.stringify({
-                                action: 'get_available_courses'
+                                action: 'get_available_actions',
+                                course_id: {{ course_id }}
                             })
                         });
                     }

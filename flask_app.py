@@ -1030,32 +1030,65 @@ def autocomplete_topic_code():
 # ------------------------------------------
 @app.route('/api/courses', methods=['POST'])
 def api_courses():
+    if not request.get_json() or not request.get_json().get('action'):
+        abort(400)
+
     if not flask_login.current_user or not flask_login.current_user.username:
         abort(400)
-    username = flask_login.current_user.username
-    data = db.session.query(
-        Course.id,
-        Course.title,
-        Course.description,
-        Role.title,
-        Role.description
-    ).filter(
-        User.username == username,
-        Participant.user_id == User.id,
-        Participant.course_id == Course.id,
-        Role.id == Participant.role_id
-    ).all()
 
-    return jsonify(list(
-        {
-            'course_id': course_id,
-            'course_title': course_title,
-            'course_description': course_description,
-            'role_title': role_title,
-            'role_description': role_description
-        }
-        for course_id, course_title, course_description, role_title, role_description in data
-    ))
+    user_username = flask_login.current_user.username
+    user_id = flask_login.current_user.id
+    json = request.get_json()
+    action = json.get('action')
+
+    if action == 'get_available_courses':
+        data = db.session.query(
+            Course.id,
+            Course.title,
+            Course.description,
+            Role.title,
+            Role.description
+        ).filter(
+            User.username == user_username,
+            Participant.user_id == User.id,
+            Participant.course_id == Course.id,
+            Role.id == Participant.role_id
+        ).all()
+
+        return jsonify(list(
+            {
+                'course_id': course_id,
+                'course_title': course_title,
+                'course_description': course_description,
+                'role_title': role_title,
+                'role_description': role_description
+            }
+            for course_id, course_title, course_description, role_title, role_description in data
+        ))
+    elif action == 'get_available_actions' and json.get('course_id'):
+        course_id = json.get('course_id')
+        role_code = db.session.query(Role.code).filter(
+            Participant.user_id == user_id,
+            Participant.course_id == course_id,
+            Participant.role_id == Role.id
+        ).scalar()
+        if not role_code:
+            abort(403)
+        action_list = []
+        if role_code == 'ADMIN':
+            action_list.append({
+                'title': 'Управление пользователями',
+                'url': url_for('user_management_view')
+            })
+        if role_code in ['ADMIN', 'INSTRUCTOR']:
+            action_list.append({
+                'title': 'Редактирование задач',
+                'url': url_for('view_problems')
+            })
+
+
+        return jsonify(action_list)
+
 
 
 @app.route('/courses', methods=['GET'])
@@ -1063,214 +1096,89 @@ def view_courses():
     return render_template('view_available_courses.html')
 
 
-@app.route('/api/problem_management')
-@flask_login.login_required
-def show_problem(problem_id):
-    teachers = db.session.query()
-    if flask_login.current_user.id not in teachers:
-        if not db.session.query(History.id).filter(History.user == flask_login.current_user.id,
-                                                   History.problem == problem_id,
-                                                   History.event.in_(['SEEN', 'TRIED', 'ALMOST', 'SUCCESS'])).first():
-            return 'Просматривать задачу могут только преподаватели либо ранее решавшие её студенты.'
-
-    problem = Problem.query.filter_by(id=problem_id).first()
-    if problem is None:
-        return 'Задача с id {0} не найдена.'.format(problem_id)
-
-    variation = None
-    if request.args.get('variation'):
-        variation = int(request.args.get('variation'))
-
-    if flask_login.current_user.username in teachers:
-        comments = ProblemComment.query.filter_by(problem_id=problem_id).all()
-    else:
-        comments = ProblemComment.query.filter(ProblemComment.problem_id == problem_id, ProblemComment.author.in_(
-            [1, 1049, 1050] + [flask_login.current_user.id])).all()
-
-    comments_processed = []
-    for c in sorted(comments, key=lambda x: x.datetime):
-        comments_processed.append({
-            'text': c.text,
-            'author': db.session.query(User.username).filter(User.id == c.author).first()[0],
-            'datetime': c.datetime.isoformat().replace('T', ' ')
-        })
-
-    return render_template('single_problem.html',
-                           problem_statement=latex_to_html(problem.statement, variation),
-                           comments=comments_processed,
-                           problem_id=problem_id)
-
-
-# @app.route('/problem/<int:problem_id>/newcomment', methods=['POST'])
-# @flask_login.login_required
-# def new_problem_comment(problem_id):
-#     if flask_login.current_user.username not in teachers:
-#         if not db.session.query(History.id).filter(History.user == flask_login.current_user.id,
-#                                                    History.problem == problem_id,
-#                                                    History.event.in_(['SEEN', 'TRIED', 'ALMOST', 'SUCCESS'])).first():
-#             return jsonify(result='Комментировать задачу могут только преподаватели либо ранее решавшие её студенты.')
-#
-#     c = ProblemComment()
-#     c.problem_id = problem_id
-#     c.datetime = datetime.now()
-#     c.text = request.json['comment'];
-#     c.author = flask_login.current_user.id
-#     db.session.add(c)
-#     db.session.commit()
-#     return jsonify(result='Комментарий успешно добавлен. Обновите страницу для отображения.');
-
-
-@app.route('/problems/<topic>/', methods=['GET'])
-@flask_login.login_required
-def show_problems(topic):
-    if flask_login.current_user.username not in teachers:
-        return 'Только преподаватели имеют доступ к этой странице'
-
-    template = request.args.get('template', '')
-
-    problems = None
-    if topic == 'all':
-        problems = Problem.query.all()
-        show_filter_prompt = True
-    else:
-        show_filter_prompt = False
-        if not topic.isdecimal():
-            topic = db.session.query(Topic.id).filter(Topic.topic == topic).first()
-            if topic:
-                topic = str(topic[0])
-        if topic:
-            problems = Problem.query.filter_by(topics=topic).all()
-
-    if problems is None:
-        return 'Невозможно загрузить задачи для отображения'
-    template_problems = []
-    for p in problems:
-        if p.topics and p.topics.split(',')[0] and p.topics.split(',')[0].isdecimal():
-            t_id = int(p.topics.split(',')[0])
-            topic = db.session.query(Topic.topic).filter(Topic.id == t_id).first()
-        else:
-            topic = ''
-        if topic:
-            topic = topic[0]
-        else:
-            topic = ''
-        template_problems.append({
-            'topic': topic,
-            'edit_url': url_for('edit_problem', problem_id=p.id),
-            'id': p.id,
-            'statement': latex_to_html(p.statement) if template != 'source' else p.statement,
-            'clones': p.clones})
+@app.route('/course-<int:course_id>')
+def view_course(course_id):
+    if not flask_login.current_user or not flask_login.current_user.username:
+        abort(403)
+    role_code = db.session.query(Role.code).filter(
+        Participant.user_id == flask_login.current_user.id,
+        Participant.course_id == course_id,
+        Participant.role_id == Role.id
+    ).scalar()
+    if not role_code:
+        abort(403)
 
     return render_template(
-        'multiple_problems{}.html'.format('_' + template if template else ''),
-        problems=template_problems,
-        show_filter_prompt=show_filter_prompt)
+        'view_course.html',
+        course_id=course_id
+    )
 
 
-@app.route('/problem/new')
-@flask_login.login_required
-def new_problem():
-    if flask_login.current_user.username not in teachers:
-        return "Создавать задачи могут только преподаватели."
-
-    existing_problem_id = db.session.query(Problem.id).filter(Problem.statement.like('(Условие задачи)%')).first()
-    if existing_problem_id:
-        return redirect(url_for('edit_problem', problem_id=existing_problem_id[0]))
-
-    p = Problem()
-    p.statement = '(Условие задачи)'
-    p.creator = flask_login.current_user.id
-    db.session.add(p)
-    db.session.commit()
-    return redirect(url_for('edit_problem', problem_id=p.id))
+@app.route('/problems', methods=['GET'])
+def view_problems():
+    return render_template('view_problems.html')
 
 
-@app.route('/problem/<int:problem_id>/edit')
-@flask_login.login_required
-def edit_problem(problem_id):
-    if flask_login.current_user.username not in teachers:
-        return "Login required for this URL"
+@app.route('/api/problems', methods=['POST'])
+def api_problems():
+    if not request.get_json() or not request.get_json().get('action'):
+        abort(400)
 
-    p = Problem.query.filter_by(id=problem_id).first()
-    if p is None:
-        return 'Задача с id {0} не найдена.'.format(problem_id)
-    if p.topics and p.topics.split(',')[0].isdecimal():
-        topic = Topic.query.filter_by(id=int(p.topics.split(',')[0])).first().topic
-    else:
-        topic = ''
+    if not flask_login.current_user or not flask_login.current_user.username:
+        abort(400)
 
-    return render_template('single_problem_edit.html',
-                           problem_statement=p.statement,
-                           problem_id=problem_id,
-                           topic=topic,
-                           clones=p.clones)
+    user_id = flask_login.current_user.id
+    course_id = flask_login.current_user.current_course_id or Course.query.first().id
+    json = request.get_json()
+    action = json.get('action')
 
+    if action == 'load':
+        role_code = db.session.query(
+            Role.code
+        ).filter(
+            Participant.user_id == user_id,
+            Participant.course_id == course_id,
+            Role.id == Participant.role_id
+        ).scalar()
+        if role_code not in ['INSTRUCTOR', 'ADMIN']:
+            abort(403)
 
-@app.route('/problem/<int:problem_id>/update', methods=['POST'])
-@flask_login.login_required
-def update_problem(problem_id):
-    if flask_login.current_user.username not in teachers:
-        return jsonify(result="You need to be logged in as a teacher to update problem database")
+        query = db.session.query(
+            Problem.id,
+            Problem.statement,
+            Topic.code,
+        ).filter(
+            Topic.id == ProblemTopicAssignment.topic_id,
+            Problem.id == ProblemTopicAssignment.problem_id
+        )
 
-    p = Problem.query.filter_by(id=problem_id).first()
-    p.statement = request.json['statement']
-    p.last_modified = datetime.now()
-    clones = set(request.json['clones'].strip().split(','))
-    if all(x.isdecimal() for x in clones):
-        p.clones = ','.join(str(x) for x in sorted(int(y) for y in clones))
-    else:
-        p.clones = ''
-    p.topics = ''
-    if request.json['topic']:
-        r = db.session.query(Topic.id).filter(Topic.topic == request.json['topic']).first()
-        if r:
-            p.topics = str(r[0])
+        if json.get('filter'):
+            if json['filter'].get('problem_statement'):
+                statement_filter = json['filter'].get('problem_statement')
+                query = query.filter(Problem.statement.like('%{}%'.format(statement_filter)))
 
-    db.session.commit()
+            if json['filter'].get('pageIndex') is not None and json['filter'].get('pageSize'):
+                count = query.count()
+                page_index = json['filter']['pageIndex'] - 1
+                page_size = json['filter']['pageSize']
+                query = query.slice(page_index * page_size, page_index * page_size + page_size)
 
-    return jsonify(result='Задача успешно обновлена.', processedText=latex_to_html(p.statement));
-
-
-@app.route('/trajectory/edit', methods=['GET', 'POST'])
-@flask_login.login_required
-def edit_trajectory():
-    if flask_login.current_user.username not in teachers:
-        return "You need to be logged in as a teacher to update trajectory"
-
-    if request.method == 'GET':
-        trajectory_topics = list(map(int, Trajectory.query.first().topics.split('|')))
-        topics = {t.id: (t.level, t.topic) for t in Topic.query.filter(Problem.id.in_(trajectory_topics)).all()}
-
-        return render_template('trajectory.html',
-                               topics=[{'id': id, 'name': topics[id][1], 'level': topics[id][0]} for id in
-                                       trajectory_topics])
-
-    num_added_new_topics = 0
-    if request.json['newtopics']:
-        new_topic_names = request.json['newtopics'].split('|')
-        for t in new_topic_names:
-            if db.session.query(Topic.id).filter(Topic.topic == t).first() is None:
-                topic = Topic()
-                topic.topic = t
-                db.session.add(topic)
-                num_added_new_topics += 1
-
-    topic_names = request.json['topics'].split('|')
-    topic_levels = request.json['levels'].split('|')
-    topic_ids = []
-
-    for name, level in zip(topic_names, topic_levels):
-        t = Topic.query.filter_by(topic=name).first()
-        if level.isdecimal():
-            t.level = int(level)
-        topic_ids.append(str(t.id))
-
-    Trajectory.query.first().topics = '|'.join(topic_ids)
-    db.session.commit()
-
-    if num_added_new_topics > 0:
-        return jsonify(result='Траектория успешно обновлена; добавлено {0} новых тем.'.format(num_added_new_topics))
-    return jsonify(result='Траектория успешно обновлена.')
+        data = query.all()
+        return jsonify({
+            'itemsCount': count,
+            'data': list(
+                {
+                    'problem_id': problem_id,
+                    'problem_statement_raw': problem_statement,
+                    'problem_statement': process_problem_statement(problem_statement),
+                    'topic_codes': topic_codes
+                }
+                for problem_id,
+                    problem_statement,
+                    topic_codes
+                in data
+            )
+        })
 
 
 @app.route('/latex_to_html', methods=['POST'])

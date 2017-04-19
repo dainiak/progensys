@@ -1,3 +1,5 @@
+from flask import escape
+
 import re
 
 
@@ -109,3 +111,7 @@ def latex_to_html(text, variation=None):
     text = process_xypic_macros(text)
 
     return text
+
+
+def process_problem_statement(text):
+    return latex_to_html(text)

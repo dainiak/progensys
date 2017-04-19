@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}Результаты{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/mode-latex.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/theme-chrome.js"></script>
+
+
+    <script>
+        $(function () {
+            var $textarea = $('#editProblemModal textarea.ace-area');
+            var editor = ace.edit($textarea[0]);
+            editor.$blockScrolling = Infinity;
+            editor.setOptions({
+                theme: 'ace/theme/chrome',
+                mode: 'ace/mode/latex',
+                minLines: 3,
+                maxLines: Infinity,
+                wrap: true,
+                showGutter: true,
+                fadeFoldWidgets: false,
+                showPrintMargin: false
+            });
+
+            editor.commands.removeCommands(["gotoline", "find"]);
+            editor.commands.addCommand({
+                name: 'typeset',
+                bindKey: 'Ctrl-Enter',
+                exec: function(){
+                    var dataToSend = {};
+                    dataToSend['text'] = editor.getValue();
+                    $.ajax({
+                        url: '/latex_to_html',
+                        data: JSON.stringify(dataToSend),
+                        contentType: 'application/json',
+                        type: 'POST',
+                        success: function(response) {
+                            if( response.result ){
+                                $('#typeset').html(response.result);
+                                $('#mathjaxonly').hide(0);
+                                MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')));
+                            }
+                        }
+                    });
+                }
+            });
+
+            function editProblemDetails(item){
+                editor.setValue(item.problem_statement_raw);
+                $('#editProblemModal').modal('show');
+                $('#editProblemModal')[0].currentItem = item;
+                editor.resize();
+                editor.focus();
+                editor.gotoLine(1);
+            }
+
+            $('#editProblemModal button.button-cancel-editing').click(function(){
+                $('#editProblemModal')[0].currentItem = null;
+                $('#editProblemModal').modal('hide');
+            });
+
+            function saveProblemChanges(){
+                var item = $('#editProblemModal')[0].currentItem;
+                if(!item) {
+                    return null;
+                }
+                var problem_statement_raw = editor.getValue();
+                $.extend(item, {
+                    problem_statement_raw: problem_statement_raw
+                });
+
+                $("#jsGrid").jsGrid("updateItem", item);
+            }
+
+            $('#editProblemModal button.button-save-changes').click(function(){
+                saveProblemChanges();
+            });
+
+            $('#editProblemModal button.button-save-and-close').click(function(){
+                saveProblemChanges();
+                $('#editProblemModal')[0].currentItem = null;
+                $('#editProblemModal').modal('hide')
+            });
+
+
+            var fields = [
+                {
+                    title: "ID задачи",
+                    name: "problem_id",
+                    type: "number",
+                    filtering: true,
+                    width: 5
+                },
+                {
+                    title: "Коды тем",
+                    name: "topic_codes",
+                    itemTemplate: function (value) {
+                        return $('<div>').css('width','100%').css('overflow', 'hidden').text(value);
+                    },
+                    type: "textarea",
+                    filtering: true,
+                    width: 15
+                },
+                {
+                    title: "Условие",
+                    name: "problem_statement",
+                    type: "textarea",
+                    itemTemplate: function (value) {
+                        return $('<span>').html(value);
+                    },
+                    filtering: true,
+                    autosearch: true
+                },
+                {
+                    type: "control",
+                    modeSwitchButton: false,
+                    editButton: true,
+                    width: 5
+                }
+            ];
+
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                inserting: false,
+                heading: true,
+                editing: true,
+                filtering: true,
+                sorting: true,
+                paging: true,
+                pageLoading: true,
+                autoload: true,
+                fields: fields,
+                controller: {
+                    loadData: function (filter) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/problems",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'load',
+                                filter: filter
+                            })
+                        });
+                    },
+                    updateItem: function (item) {
+                        return item;
+                    }
+                },
+                rowClick: function(args){
+                    editProblemDetails(args.item);
+                },
+                onRefreshed: function () {
+                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                },
+                onItemInserted: function () {
+                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                },
+                onItemUpdated: function () {
+                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                }
+            });
+        })
+        ;
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <div id="jsGrid"></div>
+
+    <div class="modal fade" id="editProblemModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактирование задачи</h5>
+                    <button type="button" class="close button-cancel-editing">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="ace-area"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary button-cancel-editing">Отмена</button>
+                    <button type="button" class="btn btn-secondary button-save-changes">Сохранить</button>
+                    <button type="button" class="btn btn-primary button-save-and-close">Сохранить и закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock body %}

@@ -8,9 +8,11 @@
 {% endblock jquery_include %}
 
 {% block bootstrap_include %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/css/tether.min.css" />
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
 {% endblock bootstrap_include %}
 
@@ -19,6 +21,7 @@
 MathJax.Ajax.config.path['Contrib'] = '//cdn.mathjax.org/mathjax/contrib';
 
 MathJax.Hub.Config({
+    skipStartupTypeset: true,
     messageStyle: 'none',
 	showMathMenu: false,
 	showMathMenuMSIE: false,
@@ -111,7 +114,10 @@ MathJax.Hub.Config({
             })
         }).done(function (user) {
             if(user && user.id) {
-                $('#userHeader').text('Вы находитесь в системе под именем “' + user.name_first + ' ' + user.name_last + '”')
+                $('#userRealName').text(user.name_first + ' ' + user.name_last + ' ').append($('<i class="fa fa-sign-out" aria-hidden="true"></i>').wrap($('<a>').attr('href', '/logout')))
+            }
+            else{
+                $('#userRealName').text('Вход в систему не выполнен')
             }
         })
     });
@@ -121,5 +127,16 @@ MathJax.Hub.Config({
 <title>{% block title %}{% endblock %}</title>
 </head>
 
-<body><div id="userHeader" style="width: 100%"></div>{% block body %}{% endblock body %}</body>
+<body>
+<nav class="navbar navbar-toggleable-md navbar-light bg-faded">
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="fa fa-bars" aria-hidden="true"></i></button>
+    <a class="navbar-brand" href="/"><span id="userRealName"></span></a>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto">
+            <a class="nav-item nav-link" href="/courses">Курсы</a>
+        </div>
+    </div>
+</nav>
+
+{% block body %}{% endblock body %}</body>
 </html>
