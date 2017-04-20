@@ -95,7 +95,7 @@
 				'position' : 'fixed',
 				'top'      : '10px',
 				'right'    : '10px',
-				'width'    : '300px',
+				'width'    : '100%',
 				'zIndex'   : 50000
 			}
 		},
@@ -113,7 +113,7 @@
 
 			'defaults' :
 			{
-				'title'     : 'Notice',
+				'title'     : 'Уведомление',
 				'priority'  : 'success',
 				'delimiter' : ':'
 			},
@@ -134,9 +134,6 @@
 				return $toast.animate(
 					{
 						opacity : '0',
-						padding : '0px',
-						margin  : '0px',
-						height  : '0px'
 					},
 					{
 						duration : settings.toast.fade,

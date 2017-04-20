@@ -512,6 +512,31 @@ def api_user_management():
             user = User.query.filter_by(id=item['id']).first()
             if not user:
                 return jsonify(error='User with this id not found')
+
+            db.session.query(
+                ExposureContent
+            ).filter(
+                ExposureContent.user_id == user.id
+            ).delete()
+
+            db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == user.id
+            ).delete()
+
+            db.session.query(
+                GroupMembership
+            ).filter(
+                GroupMembership.user_id == user.id
+            ).delete()
+
+            db.session.query(
+                ProblemStatus
+            ).filter(
+                ProblemStatus.user_id == user.id
+            ).delete()
+
             db.session.delete(user)
             db.session.commit()
             return jsonify(result='Success')
@@ -1158,6 +1183,13 @@ def api_problems():
             filter = json.get('filter')
             if filter.get('problem_id'):
                 query = query.filter(Problem.id == filter.get('problem_id'))
+            if filter.get('topic_codes'):
+                topic_codes = filter.get('topic_codes').strip().split()
+                query = query.filter(
+                    ProblemTopicAssignment.problem_id == Problem.id,
+                    ProblemTopicAssignment.topic_id == Topic.id,
+                    Topic.code.in_(topic_codes)
+                )
             if filter.get('problem_statement'):
                 statement_filter = filter.get('problem_statement')
                 query = query.filter(Problem.statement.like('%{}%'.format(statement_filter)))
@@ -2285,6 +2317,14 @@ def root():
 
 @app.route('/api/authorization', methods=['POST'])
 def api_authorization():
+    if request.form and request.form.get('username') and request.form.get('password'):
+        user = User.query.filter_by(username=request.form.get('username')).first()
+        if user is not None and hasattr(user, 'password_hash') and md5(request.form.get('password')) == user.password_hash:
+            flask_login.login_user(user)
+            return redirect(url_for('view_courses'))
+        else:
+            abort(403)
+
     json = request.get_json()
     if not json:
         abort(400)
@@ -2301,7 +2341,7 @@ def api_authorization():
         return jsonify('Logged out'), http_status_codes.HTTP_200_OK
 
     elif json.get('action') == 'get_authorized_user':
-        if flask_login.current_user:
+        if flask_login.current_user and hasattr(flask_login.current_user, 'username'):
             return jsonify({
                 'id': flask_login.current_user.id,
                 'username': flask_login.current_user.username,
@@ -2318,10 +2358,21 @@ def api_authorization():
 
 @app.route('/login', methods=['GET'])
 def login():
+    already_logged = False
+    login_successful = False
+    bad_login = False
+    username = False
     if request.method == 'GET':
         if flask_login.current_user is not None and hasattr(flask_login.current_user, 'username'):
             already_logged = True
             username = flask_login.current_user.username
+        return render_template(
+            'login.html',
+            already_logged=already_logged,
+            login_successful=login_successful,
+            bad_login=bad_login,
+            username=username)
+
     else:
         user = User.query.filter_by(username=request.form['username']).first()
         if user is not None and hasattr(user, 'password_hash') and md5(request.form['pw']) == user.password_hash:
@@ -2331,15 +2382,10 @@ def login():
         else:
             bad_login = True
 
-    return render_template(
-        'login.html',
-        already_logged=already_logged,
-        login_successful=login_successful,
-        bad_login=bad_login,
-        username=username)
 
 
-@app.route('/api/logout')
+
+@app.route('/logout')
 def logout():
     flask_login.logout_user()
     return redirect(url_for('login'))

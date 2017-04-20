@@ -114,7 +114,7 @@ MathJax.Hub.Config({
             })
         }).done(function (user) {
             if(user && user.id) {
-                $('#userRealName').text(user.name_first + ' ' + user.name_last + ' ').append($('<i class="fa fa-sign-out" aria-hidden="true"></i>').wrap($('<a>').attr('href', '/logout')))
+                $('#userRealName').text(user.name_first + ' ' + user.name_last + ' ').append($('<a>').attr('href', '/logout').css('color', 'black').append('<i class="fa fa-sign-out" aria-hidden="true"></i>'));
             }
             else{
                 $('#userRealName').text('Вход в систему не выполнен')

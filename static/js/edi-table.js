@@ -137,4 +137,3 @@ $.fn.editableTableWidget.defaultOptions = {
 					  'border', 'border-top', 'border-bottom', 'border-left', 'border-right'],
 	editor: $('<input>')
 };
-

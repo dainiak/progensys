@@ -1,4 +1,5 @@
 from flask import escape
+import random
 
 import re
 

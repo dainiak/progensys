@@ -14,10 +14,17 @@
     {% endif %}
 
     {% if not login_successful %}
-        <form action="login" method="POST">
-        <input class="form-control" type="text" name="username" id="username" placeholder="username"></input>
-        <input class="form-control"  type="password" name="pw" id="pw" placeholder="password"></input>
-        <input class="btn btn-default" type="submit" name="submit"></input>
-        </form>
+        <div class="container">
+        <div class="card card-outline-secondary">
+            <div class="card-block">
+            <h4 class="card-title">Данные для авторизации:</h4>
+            <form action="/api/authorization" method="POST" class="form">
+                <input class="form-control" type="text" name="username" placeholder="имя пользователя">
+                <input class="form-control"  type="password" name="password" placeholder="пароль">
+                <input class="btn btn-default" type="submit" name="Авторизоваться" value="Авторизоваться">
+            </form>
+        </div>
+        </div>
+        </div>
     {% endif %}
 {% endblock body %}

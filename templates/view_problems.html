@@ -15,6 +15,27 @@
 
     <script>
         $(function () {
+            $('#topicCodesArea').autocomplete({
+                mustMatch: true,
+                minLength: 2,
+                zIndex: 10000,
+                source: function(request, response) {
+                    $.ajax({
+                        type: "POST",
+                        url: "{{ url_for('autocomplete_topic_code') }}",
+                        contentType: "application/json",
+                        dataType: "json",
+                        data: JSON.stringify(request.term),
+                        success: function(data) {
+                            response(data.matches);
+                        }
+                    });
+                },
+                open: function () {
+                    $(this).autocomplete('widget').css('z-index', 2000);
+                }
+            });
+
             var $textarea = $('#problemStatementArea');
             var editor = ace.edit($textarea[0]);
             editor.$blockScrolling = Infinity;
@@ -102,8 +123,6 @@
                 saveProblemChanges(true);
             });
 
-            $.toaster({settings : {'toaster': { 'css': {'width': '100%'}}}});
-
             var fields = [
                 {
                     title: "ID задачи",
@@ -117,6 +136,30 @@
                     name: "topic_codes",
                     itemTemplate: function (value) {
                         return $('<div>').css('width','100%').css('overflow', 'hidden').text(value);
+                    },
+                    filterTemplate: function() {
+                        return this._filterInput = $("<input>").autocomplete({
+                            mustMatch: true,
+                            minLength: 2,
+                            source: function(request, response) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "{{ url_for('autocomplete_topic_code') }}",
+                                    contentType: "application/json",
+                                    dataType: "json",
+                                    data: JSON.stringify(request.term),
+                                    success: function(data) {
+                                        response(data.matches);
+                                    }
+                                });
+                            },
+                            select: function () {
+                                $('#jsGrid').jsGrid('loadData');
+                            }
+                        });
+                    },
+                    filterValue: function () {
+                        return this._filterInput.val();
                     },
                     type: "textarea",
                     filtering: true,
@@ -274,8 +317,8 @@
 {% block body %}
     <div id="jsGrid"></div>
 
-    <div class="modal fade" id="editProblemModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog" role="document">
+    <div class="modal fade" id="editProblemModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Редактирование задачи</h5>
@@ -286,7 +329,7 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="problemStatementArea">Условие задачи:</label>
-                        <textarea id="problemStatementArea" class="form-control"></textarea>
+                        <textarea id="problemStatementArea" class="form-control form-control-lg"></textarea>
                     </div>
                     <div class="form-group">
                         <label for="topicCodesArea">Коды тем:</label>
@@ -294,7 +337,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary button-cancel-editing">Отмена</button>
+                    <button type="button" class="btn btn-secondary button-cancel-editing">Закрыть</button>
                     <button type="button" class="btn btn-secondary button-save-changes">Сохранить</button>
                     <button type="button" class="btn btn-primary button-save-and-close">Сохранить и закрыть</button>
                 </div>
