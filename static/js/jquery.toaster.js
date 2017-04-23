@@ -133,7 +133,7 @@
 			{
 				return $toast.animate(
 					{
-						opacity : '0',
+						opacity : '0'
 					},
 					{
 						duration : settings.toast.fade,
