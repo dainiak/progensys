@@ -7,22 +7,106 @@
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
 
+{#    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>#}
+{#    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/locale/ru.js"></script>#}
+
     <script src="/static/js/jquery.toaster.js"></script>
 
 
     <script>
         $(function () {
+            $('#exposure-datetime').val((new Date()).toISOString().slice(0,16));
+            $('#exposureTypeManual').change(function(){
+                if($(this).prop('checked')){
+                    $('#problemSetIDChooser').show();
+                }
+            });
+            $('#exposureTypeAuto').change(function(){
+                if($(this).prop('checked')){
+                    $('#problemSetIDChooser').hide();
+                }
+            });
+            $('#exposureSettingsModalOpen').click( function () {
+                $('#userIDs').val(selectedItemIDs);
+                $('#exposureSettingsModal').modal('show');
+            });
+
+            var selectedItemIDs = [];
+            var allLoadedIDs = [];
+            var $headerCheckbox = null;
+
+            function updateSelectionHeader() {
+                if(selectedItemIDs.length == 0) {
+                    $headerCheckbox.prop("indeterminate", false).prop("checked", false);
+                }
+                else if(selectedItemIDs.length == allLoadedIDs.length &&
+                    $.grep(selectedItemIDs, function(id) {
+                        return $.inArray(id, allLoadedIDs) >= 0;
+                    }).length == allLoadedIDs.length) {
+                    $headerCheckbox.prop("indeterminate", false).prop("checked", true);
+                }
+                else {
+                    $headerCheckbox.prop("checked", false).prop("indeterminate", true);
+                }
+            }
+
+            function selectItem(item) {
+                if($.inArray(item.user_id, selectedItemIDs) < 0){
+                    selectedItemIDs.push(item.user_id);
+                    updateSelectionHeader();
+                }
+            }
+
+            function unselectItem(item) {
+                selectedItemIDs = $.grep(selectedItemIDs, function(i) {
+                    return i !== item.user_id;
+                });
+                updateSelectionHeader();
+            }
+
+            function selectAll(){
+                selectedItemIDs = allLoadedIDs;
+                $("#jsGrid").jsGrid("refresh");
+            }
+
+            function unselectAll(){
+                selectedItemIDs = [];
+                $("#jsGrid").jsGrid("refresh");
+            }
+
+
             $("#jsGrid").jsGrid({
                 width: "100%",
                 height: "auto",
                 inserting: true,
                 heading: true,
                 filtering: true,
+                editing: true,
                 sorting: true,
                 paging: false,
                 autoload: true,
                 deleteConfirm: "Вы уверены, что хотите удалить пользователя из участников курса? История оценок при этом сохранится.",
                 fields: [
+                    {
+                        headerTemplate: function() {
+                            $headerCheckbox = $("<input>")
+                                .attr("type", "checkbox")
+                                .on("change", function(){
+                                    $(this).is(":checked") ? selectAll() : unselectAll()
+                                });
+                            return $headerCheckbox;
+                        },
+                        itemTemplate: function(_, item) {
+                            return $("<input>").attr("type", "checkbox")
+                                    .prop("checked", $.inArray(item.user_id, selectedItemIDs) > -1)
+                                    .on("change", function () {
+                                        $(this).is(":checked") ? selectItem(item) : unselectItem(item);
+                                    });
+                        },
+                        align: "center",
+                        sorting: false,
+                        width: 50
+                    },
                     {
                         title: "Группы",
                         name: "groups",
@@ -62,9 +146,15 @@
                         textField: "role_title"
                     },
                     {
+                        title: "Траектория",
+                        name: "trajectory_id",
+                        type: "select",
+                        items: [""].concat({{ trajectory_ids | safe }})
+                    },
+                    {
                         type: "control",
                         modeSwitchButton: false,
-                        editButton: false
+                        editButton: true
                     }
                 ],
 
@@ -80,6 +170,11 @@
                                 filter: filter,
                                 course_id: {{ course_id }}
                             })
+                        }).done(function (response) {
+                            allLoadedIDs = [];
+                            for(var t = 0; t < response.length; ++t){
+                                allLoadedIDs.push(response[t].user_id);
+                            }
                         });
                     },
                     insertItem: function (item) {
@@ -96,6 +191,29 @@
                         }).done(function () {
                             $.toaster({
                                 message : 'Пользователь добавлен в участники курса',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    updateItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/participant",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'update',
+                                item: item,
+                                course_id: {{ course_id }}
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
                                 priority : 'success'
                             });
                         }).fail(function () {
@@ -128,14 +246,95 @@
                             });
                         });
                     }
+                },
+                onItemEditing: function(args) {
+                    if(args.item.role_id != 3) {
+                        args.cancel = true;
+                    }
+                },
+                rowClick: function () {
+                    return false;
+                },
+                onRefreshed: function () {
+                    updateSelectionHeader();
                 }
             });
-        })
-        ;
+        });
     </script>
 {% endblock head %}
 
 {% block body %}
-    <h1>Управление участниками курса «{{ course_title }}»</h1>
-    <div id="jsGrid"></div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-block">
+                <h4 class="card-title">Управление участниками курса «{{ course_title }}»</h4>
+                Действия:
+                <div class="form-inline">
+                    <button class="btn btn-secondary" id="exposureSettingsModalOpen">создать
+                        выдачу
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="jsGrid" class="card"></div>
+
+    </div>
+    <div class="modal fade" id="exposureSettingsModal" tabindex="-1" role="dialog" aria-hidden="true"
+         data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Параметры выдачи</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="exposureForm" action="{{ url_for('exposures.new_exposure') }}" method="post">
+                    <input id="userIDs" name="user_ids" type="hidden" value="">
+                    <input name="course_id" type="hidden" value="{{ course_id }}">
+                    <div class="modal-body">
+                        <div class="form">
+                            <div class="form-group row">
+                                <label for="exposure-datetime" class="col-2 col-form-label">Дата и время выдачи</label>
+                                <div class="col-10"><input id="exposure-datetime" class="form-control"
+                                                           type="datetime-local" name="exposure_timestamp"></div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-2 col-form-label" for="exposureTitleInput">Название выдачи</label>
+                                <div class="col-10"><input type="text" class="form-control" id="exposureTitleInput"
+                                                           placeholder="заголовок" name="exposure_title"></div>
+                            </div>
+                            <fieldset class="form-group">
+                                <label>Тип выдачи</label>
+                                <div class="form-check">
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="exposure_type"
+                                               id="exposureTypeAuto" value="auto" checked>
+                                        автоматическая генерация
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="exposure_type"
+                                               id="exposureTypeManual" value="manual">
+                                        фиксированный набор задач
+                                    </label>
+                                </div>
+                            </fieldset>
+                            <div id="problemSetIDChooser" class="form-group row" style="display:none">
+                                <label class="col-2 col-form-label" for="problemSetID">ID набора задач</label>
+                                <div class="col-10"><input type="number" class="form-control" id="problemSetID"
+                                                           name="problem_set_id"
+                                                           placeholder="ID"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn btn-secondary button-create-exposure">Создать выдачу</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 {% endblock body %}

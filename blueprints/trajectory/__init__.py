@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, url_for
 import flask_login
 
 from blueprints.models import \
@@ -6,7 +6,8 @@ from blueprints.models import \
     Topic, \
     Participant, \
     Role, \
-    TrajectoryContent
+    TrajectoryContent, \
+    Trajectory
 
 trajectory_blueprint = Blueprint('trajectory', __name__, template_folder='templates')
 
@@ -14,26 +15,25 @@ trajectory_blueprint = Blueprint('trajectory', __name__, template_folder='templa
 @trajectory_blueprint.route('/api/trajectory', methods=['POST'])
 @flask_login.login_required
 def api_trajectory():
+    json = request.get_json()
+    if not json or 'action' not in json or 'trajectory_id' not in json:
+        abort(400)
+
+    trajectory_id = json['trajectory_id']
+    action = json['action']
+
     if not db.session.query(
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == Trajectory.course_id,
+                Trajectory.id == trajectory_id,
                 Participant.role_id == Role.id,
-                Role.code == 'ADMIN'
-            ).exists():
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+            ).first():
         abort(403)
 
-    json = request.get_json()
-    if not json or 'action' not in json:
-        return jsonify(error='Expected JSON format and action')
-
-    if json['action'] == 'load':
-        if not json.get('trajectory_id'):
-            return jsonify(error='Trajectory ID not specified')
-
-        trajectory_id = json['trajectory_id']
-
+    if action == 'load':
         data = sorted(db.session.query(
             TrajectoryContent.sort_key,
             TrajectoryContent.id,
@@ -55,10 +55,9 @@ def api_trajectory():
         return jsonify(result)
 
     elif json['action'] == 'reorder':
-        if not json.get('trajectory_id') or not json.get('ids'):
-            return jsonify(error='Trajectory ID or reordering not specified')
+        if not json.get('ids'):
+            abort(400)
 
-        trajectory_id = json['trajectory_id']
         new_order = json['ids']
         items = {tc.id: tc for tc in db.session.query(
             TrajectoryContent
@@ -74,10 +73,8 @@ def api_trajectory():
         return jsonify(result='Successfully reordered items')
 
     elif json['action'] == 'insert':
-        if not json.get('trajectory_id'):
-            return jsonify(error='Trajectory ID not specified')
         if not json.get('topic_id') and not json.get('topic_code'):
-            return jsonify(error='Neither topic ID not code is specified')
+            abort(400)
         trajectory_id = json['trajectory_id']
         sort_key = json.get('sort_key')
         topic_id = json.get('topic_id')
@@ -93,12 +90,10 @@ def api_trajectory():
         return jsonify(id=tc.id, topic_id=tc.topic_id, topic_code=topic_code, sort_key=tc.sort_key)
 
     elif json['action'] == 'update':
-        if not json.get('trajectory_id'):
-            return jsonify(error='Trajectory ID not specified')
         if not json.get('id'):
-            return jsonify(error='Item ID not specified')
+            abort(400)
         if not json.get('topic_id') and not json.get('topic_code'):
-            return jsonify(error='Neither topic ID not code is specified')
+            abort(400)
 
         sort_key = json.get('sort_key')
         topic_id = json.get('topic_id')
@@ -126,9 +121,110 @@ def api_trajectory():
         db.session.commit()
         return jsonify(result='Item successfuly deleted')
 
-    abort(400, 'Your request should be insert/delete/reorder')
+    abort(400, 'Your request should be insert/delete/reorder/update')
 
 
+@trajectory_blueprint.route('/api/trajectories', methods=['POST'])
+@flask_login.login_required
+def api_trajectories():
+    json = request.get_json()
+    if not json:
+        abort(400)
+
+    course_id = json.get('course_id')
+    if not course_id:
+        abort(400)
+
+    action = json.get('action')
+    if not action:
+        abort(400)
+
+    if not db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == flask_login.current_user.id,
+                Participant.course_id == course_id,
+                Participant.role_id == Role.id,
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+            ).first():
+        abort(403)
+
+    if action == 'load':
+        return jsonify(list(
+            {
+                'id': id,
+                'title': title,
+                'comment': comment,
+                'url': url_for('trajectory.view_trajectory', trajectory_id=id)
+            }
+            for id, title, comment in db.session.query(
+                Trajectory.id,
+                Trajectory.title,
+                Trajectory.comment
+            ).filter(
+                Trajectory.course_id == course_id
+            ).all()))
+
+    elif action == 'insert':
+        item = json.get('item')
+        if not item:
+            abort(400)
+
+        trajectory = Trajectory()
+        trajectory.course_id = course_id
+        if item.get('title'):
+            trajectory.title = item['title']
+        if item.get('comment'):
+            trajectory.comment = item['comment']
+        db.session.add(trajectory)
+        db.session.commit()
+        return jsonify({
+            'id': trajectory.id,
+            'title': trajectory.title,
+            'comment': trajectory.comment
+        })
+
+    elif action == 'update':
+        item = json.get('item')
+        if not item:
+            abort(400)
+        if not item.get('id'):
+            abort(400)
+
+        trajectory = Trajectory.query.filter_by(id=item['id'], course_id=course_id).first()
+        if not trajectory:
+            abort(404)
+
+        if item.get('title'):
+            trajectory.title = item['title']
+        if item.get('comment'):
+            trajectory.comment = item['comment']
+
+        db.session.commit()
+
+        return jsonify({
+            'id': trajectory.id,
+            'title': trajectory.title,
+            'comment': trajectory.comment
+        })
+
+    elif action == 'delete':
+        item = json.get('item')
+        if not item:
+            abort(400)
+        if not item.get('id'):
+            abort(400)
+
+        trajectory = Trajectory.query.filter_by(id=item['id'], course_id=course_id).first()
+        if not trajectory:
+            abort(404)
+
+        db.session.delete(trajectory)
+        db.session.commit()
+        return jsonify(result='Success')
+
+
+@trajectory_blueprint.route('/trajectory/trajectory-<int:trajectory_id>/', methods=['GET'])
 @trajectory_blueprint.route('/trajectory/trajectory-<int:trajectory_id>', methods=['GET'])
 @flask_login.login_required
 def view_trajectory(trajectory_id):
@@ -136,11 +232,16 @@ def view_trajectory(trajectory_id):
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == Trajectory.course_id,
                 Participant.role_id == Role.id,
-                Role.code == 'ADMIN'
-            ).exists():
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+            ).first():
         abort(403)
 
-    return render_template('view_trajectory.html', trajectory_id=trajectory_id)
+    trajectory_title = Trajectory.query.filter_by(id=trajectory_id).first().title
 
+    return render_template(
+        'view_trajectory.html',
+        trajectory_id=trajectory_id,
+        trajectory_title=trajectory_title
+    )

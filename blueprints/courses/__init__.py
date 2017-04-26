@@ -1,5 +1,15 @@
 from flask import Blueprint, render_template, request, abort, jsonify, url_for
-from blueprints.models import db, Role, Participant, Course, User, SystemAdministrator, Group, GroupMembership
+from blueprints.models import \
+    db, \
+    Role, \
+    Participant, \
+    Course, \
+    User, \
+    SystemAdministrator, \
+    Group, \
+    GroupMembership, \
+    Trajectory, \
+    UserCourseTrajectory
 import flask_login
 
 from json import dumps as to_json_string
@@ -64,6 +74,11 @@ def api_courses():
                 'title': 'Редактирование задач',
                 'url': url_for('problems.view')
             })
+        if role_code in ['ADMIN', 'INSTRUCTOR']:
+            action_list.append({
+                'title': 'Управление траекториями',
+                'url': url_for('courses.view_course_trajectories', course_id=course_id)
+            })
 
         return jsonify(action_list)
 
@@ -107,7 +122,17 @@ def participant_management_view(course_id):
         for role_id, role_title in db.session.query(Role.id, Role.title).all()
     ))
 
-    return render_template('view_participants.html', course_id=course_id, roles=roles, course_title=course_title)
+    trajectory_ids = sorted([
+        x[0] for x in db.session.query(Trajectory.id).filter(Trajectory.course_id == course_id).all()
+    ])
+
+    return render_template(
+        'view_participants.html',
+        course_id=course_id,
+        roles=roles,
+        course_title=course_title,
+        trajectory_ids=to_json_string(trajectory_ids)
+    )
 
 
 @courses_blueprint.route('/api/participant', methods=['POST'])
@@ -134,10 +159,12 @@ def api_participants():
             User.name_last,
             User.name_middle,
             User.email,
-            Participant.role_id
+            Participant.role_id,
+            Role.code
         ).filter(
             Participant.course_id == course_id,
-            Participant.user_id == User.id
+            Participant.user_id == User.id,
+            Role.id == Participant.role_id
         )
 
         if json.get('filter'):
@@ -164,13 +191,28 @@ def api_participants():
                     GroupMembership.user_id == User.id,
                     GroupMembership.group_id == Group.id, Group.code.in_(groups)
                 )
+            if frontend_filter.get('trajectory_id'):
+                query = query.filter(
+                    UserCourseTrajectory.user_id == User.id,
+                    UserCourseTrajectory.course_id == course_id,
+                    UserCourseTrajectory.trajectory_id == frontend_filter['trajectory_id'],
+                )
 
         data = []
-        for uid, username, name_first, name_last, name_middle, email, role_id in query.all():
+        for uid, username, name_first, name_last, name_middle, email, role_id, role_code in query.all():
             groups = db.session.query(Group.code).filter(
                 Group.id == GroupMembership.group_id,
                 GroupMembership.user_id == uid
             ).all()
+
+            trajectory_id = 0
+            if role_code == 'LEARNER':
+                trajectory_id = db.session.query(Trajectory.id).filter(
+                    Trajectory.course_id == course_id,
+                    UserCourseTrajectory.course_id == course_id,
+                    UserCourseTrajectory.user_id == uid,
+                    UserCourseTrajectory.trajectory_id == Trajectory.id
+                ).scalar() or 0
 
             groups = ' '.join(g[0] for g in groups) if groups else '—'
 
@@ -182,10 +224,12 @@ def api_participants():
                 'name_middle': name_middle,
                 'email': email,
                 'role_id': role_id,
-                'groups': groups
+                'groups': groups,
+                'trajectory_id': trajectory_id
             })
 
         return jsonify(data)
+
     elif json['action'] == 'insert':
         if not json.get('item') or not json.get('course_id') or not json['item'].get('role_id'):
             abort(400)
@@ -212,7 +256,10 @@ def api_participants():
 
         course_id = json['course_id']
 
-        if db.session.query(Participant.user_id).filter(Participant.user_id == user_id, Participant.course_id == course_id).first():
+        if db.session.query(Participant.user_id).filter(
+                        Participant.user_id == user_id,
+                        Participant.course_id == course_id
+                ).first():
             abort(400)
 
         participant = Participant(user_id, course_id, item['role_id'])
@@ -251,6 +298,37 @@ def api_participants():
                 'groups': groups
             })
 
+    elif json['action'] == 'update':
+        if not json.get('item') or not json.get('course_id'):
+            abort(400)
+        item = json['item']
+        if not item.get('user_id') or item.get('trajectory_id') is None:
+            abort(400)
+        user_id = item['user_id']
+        trajectory_id = item['trajectory_id']
+        course_id = json['course_id']
+
+        role_code = db.session.query(Role.code).filter(
+            Role.id == Participant.role_id,
+            Participant.user_id == user_id,
+            Participant.course_id == course_id
+        ).first()
+        if role_code:
+            role_code = role_code[0]
+        if role_code != 'LEARNER':
+            abort(400)
+
+        user_course_trajectory = UserCourseTrajectory.query.filter_by(user_id=user_id, course_id=course_id).first()
+        if user_course_trajectory:
+            user_course_trajectory.trajectory_id = trajectory_id or None
+        else:
+            user_course_trajectory = UserCourseTrajectory(user_id, course_id)
+            user_course_trajectory.trajectory_id = trajectory_id or None
+            db.session.add(user_course_trajectory)
+
+        db.session.commit()
+        return jsonify(item)
+
     elif json['action'] == 'delete':
         if not json.get('item') or not json.get('course_id'):
             abort(400)
@@ -267,3 +345,26 @@ def api_participants():
         return jsonify(result='Success')
 
     abort(400, 'Action not supported')
+
+
+@courses_blueprint.route('/course-<int:course_id>/trajectories/', methods=['GET'])
+@courses_blueprint.route('/course-<int:course_id>/trajectories', methods=['GET'])
+@flask_login.login_required
+def view_course_trajectories(course_id):
+    if not db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == flask_login.current_user.id,
+                Participant.course_id == course_id,
+                Participant.role_id == Role.id,
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+            ).first():
+        abort(403)
+
+    course_title = Course.query.filter_by(id=course_id).first().title
+
+    return render_template(
+        'view_trajectories.html',
+        course_id=course_id,
+        course_title=course_title,
+    )

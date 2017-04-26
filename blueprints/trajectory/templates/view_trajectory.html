@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Результаты{% endblock %}
+{% block title %}Траектория «{{ trajectory_title }}»{% endblock %}
 {% block head %}
     <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
     <link type="text/css" rel="stylesheet"
@@ -7,8 +7,27 @@
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
 
+    <script src="/static/js/jquery.toaster.js"></script>
+
     <script>
         $(function () {
+            var autocompleteArgs = {
+                mustMatch: true,
+                minLength: 2,
+                source: function(request, response) {
+                    $.ajax({
+                        type: "POST",
+                        url: "{{ url_for('autocompletion.autocomplete_topic_code') }}",
+                        contentType: "application/json",
+                        dataType: "json",
+                        data: JSON.stringify(request.term),
+                        success: function(data) {
+                            response(data.matches);
+                        }
+                    });
+                }
+            };
+
             var fields = [
                 {
                     title: "порядковый номер",
@@ -30,25 +49,16 @@
                     type: "text",
                     filtering: false,
                     insertTemplate: function(value) {
-                        return this._insertInput = $("<input>").autocomplete({
-                            mustMatch: true,
-                            minLength: 2,
-                            source: function(request, response) {
-                                $.ajax({
-                                    type: "POST",
-                                    url: "{{ url_for('autocomplete_topic_code') }}",
-                                    contentType: "application/json",
-                                    dataType: "json",
-                                    data: JSON.stringify(request.term),
-                                    success: function(data) {
-                                        response(data.matches);
-                                    }
-                                });
-                            }
-                        });
+                        return this._insertInput = $("<input>").autocomplete(autocompleteArgs);
                     },
                     insertValue: function() {
                         return this._insertInput.val();
+                    },
+                    editTemplate: function (value, item) {
+                        return this._editInput = $("<input>").val(value).autocomplete(autocompleteArgs);
+                    },
+                    editValue: function() {
+                        return this._editInput.val();
                     }
                 },
                 {
@@ -68,6 +78,7 @@
                 filtering: false,
                 sorting: false,
                 paging: false,
+                deleteConfirm: "Вы уверены, что хотите удалить позицию?",
                 autoload: true,
                 fields: fields,
                 controller: {
@@ -97,6 +108,16 @@
                                 sort_key: item.sort_key,
                                 trajectory_id: {{ trajectory_id }}
                             })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Тема добавлена в траекторию',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
                         });
                     },
                     updateItem: function (item) {
@@ -114,6 +135,15 @@
                             })
                         }).done(function() {
                             $("#jsGrid").jsGrid("loadData");
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
                         });
                     },
                     deleteItem: function (item) {
@@ -123,6 +153,16 @@
                             contentType: "application/json",
                             dataType: "json",
                             data: JSON.stringify({action: 'delete', id: item.id, trajectory_id: {{ trajectory_id }} })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Позиция успешно удалена из траектории',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
                         });
                     }
                 },
@@ -140,14 +180,23 @@
                                 url: "/api/trajectory",
                                 contentType: "application/json",
                                 dataType: "json",
-                                data: JSON.stringify({action: 'reorder', trajectory_id: {{ trajectory_id }}, ids: reordered_ids})
+                                data: JSON.stringify({
+                                    action: 'reorder',
+                                    trajectory_id: {{ trajectory_id }},
+                                    ids: reordered_ids
+                                })
                             }).done(function() {
-                                alert('Результаты переупорядочения сохранены');
+                                $.toaster({
+                                    message : 'Результаты переупорядочивания сохранены',
+                                    priority : 'success'
+                                });
                                 $("#jsGrid").jsGrid("loadData");
                             }).fail(function() {
-                                alert('Не удалось сохранить переупорядочение.');
+                                $.toaster({
+                                    message : 'Не удалось сохранить изменения',
+                                    priority : 'danger'
+                                });
                                 $("#jsGrid").jsGrid("loadData");
-
                             });
                         }
                     });
@@ -155,7 +204,7 @@
                 onItemInserting: function(args) {
                     if(!args.item.topic_id && !args.item.topic_code) {
                         args.cancel = true;
-                        alert("Specify either code or ID of the topic!");
+                        alert("Нужно указать код или ID темы");
                     }
                 },
                 onItemInserted: function(args) {
@@ -168,5 +217,6 @@
 {% endblock head %}
 
 {% block body %}
+    <h2>Редактирование содержимого траектории «{{ trajectory_title }}»</h2>
     <div id="jsGrid"></div>
 {% endblock body %}

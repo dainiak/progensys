@@ -26,19 +26,22 @@ grading_blueprint = Blueprint('grading', __name__, template_folder='templates')
 @grading_blueprint.route('/api/grading', methods=['POST'])
 @flask_login.login_required
 def api_grading():
+    json = request.get_json()
+    if not json or 'action' not in json or 'course_id' not in json:
+        abort(400)
+
+    course_id = json['course_id']
+
     if not db.session.query(
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == Exposure.course_id,
                 Participant.role_id == Role.id,
-                Role.code == 'ADMIN'
-            ).exists():
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+            ).first():
         abort(403)
 
-    json = request.get_json()
-    if not json or 'action' not in json:
-        return jsonify(error='Expected JSON format and action')
 
     if json['action'] == 'load':
         if not json.get('user_ids'):
@@ -58,6 +61,7 @@ def api_grading():
         ).filter(
             User.id.in_(user_ids),
             Exposure.id.in_(exposure_ids),
+            Exposure.course_id == course_id,
             ExposureContent.user_id == User.id,
             ExposureContent.exposure_id == Exposure.id
         ).all()
@@ -98,10 +102,7 @@ def api_grading():
 
             for problem_position, problem_id in enumerate(problem_ids):
                 problem_position += 1
-                data_for_frontend[-1]['p{}'.format(problem_position)] = graded_problems.get(
-                    problem_id,
-                    -problem_id
-                )
+                data_for_frontend[-1]['p{}'.format(problem_position)] = graded_problems.get(problem_id, 0)
                 data_for_frontend[-1]['pid{}'.format(problem_position)] = problem_id
 
         return jsonify(data_for_frontend)
@@ -137,7 +138,7 @@ def api_grading():
                 problem_no = field_name[len('pid'):]
                 problem_id = int(item[field_name])
                 problem_status_id = item.get('p{}'.format(problem_no))
-                if problem_status_id >= 0:
+                if problem_status_id > 0:
                     if problem_id in existing_grading_results:
                         existing_grading_results[problem_id].problem_status_id = problem_status_id
                     else:
@@ -150,36 +151,42 @@ def api_grading():
                         )
                         db.session.add(grading_result)
                 else:
-                    item['p{}'.format(problem_no)] = -problem_id
+                    item['p{}'.format(problem_no)] = 0
 
         db.session.commit()
         return jsonify(item)
 
 
-@grading_blueprint.route('/grading/date-<exposure_date>/group-<group>', methods=['GET'])
-@grading_blueprint.route('/grading/date-<exposure_date>', methods=['GET'])
+@grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/group-<group>/grading', methods=['GET'])
+@grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/grading', methods=['GET'])
 @flask_login.login_required
-def view_grading_table(exposure_date, group=None):
+def view_grading_table(exposure_string, course_id, group=None):
     if not db.session.query(
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == course_id,
                 Participant.role_id == Role.id,
-                Role.code == 'ADMIN'
-            ).exists():
+                Role.code.in_(['ADMIN', 'INSTRUCTOR', 'GRADER'])
+            ).first():
         abort(403)
+
+    if '-' in exposure_string:
+        exposures = Exposure.query.filter_by(course_id=course_id).all()
+        exposure_ids = list(map(
+            attrgetter('id'),
+            filter(lambda x: x.timestamp.isoformat()[:10] == exposure_string, exposures)
+        ))
+    elif exposure_string.isdecimal():
+        exposure_ids = [int(exposure_string)]
+    else:
+        abort(400)
+
+    if len(exposure_ids) == 0:
+        abort(404)
 
     if group is not None and not db.session.query(db.exists().where(Group.code == group)).scalar():
         return jsonify(error='Group not found')
-
-    exposures = Exposure.query.all()
-    exposure_ids = list(map(
-        attrgetter('id'),
-        filter(lambda x: x.timestamp.isoformat()[:10] == exposure_date, exposures)
-    ))
-    if len(exposure_ids) == 0:
-        return jsonify(error='No exposures with specified date were found')
 
     if group is not None:
         group_id = Group.query.filter_by(code=group).first().id
@@ -205,12 +212,13 @@ def view_grading_table(exposure_date, group=None):
             ExposureContent.exposure_id.in_(exposure_ids),
             ExposureContent.user_id.in_(user_ids))
         .all()))
-    problem_statuses = [{'name': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
+    problem_statuses = [{'icon': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
     return render_template(
-        'templates/view_grading_results.html',
+        'view_grading_results.html',
         all_problems=to_json_string(all_problems),
         exposure_ids=to_json_string(exposure_ids),
         user_ids=to_json_string(user_ids),
-        problem_statuses=to_json_string(problem_statuses)
+        problem_statuses=to_json_string(problem_statuses),
+        course_id=course_id
     )

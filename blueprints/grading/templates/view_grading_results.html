@@ -7,32 +7,90 @@
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
 
+    <script src="/static/js/jquery.toaster.js"></script>
+
     <script>
         $(function () {
             var exposure_ids = {{ exposure_ids | safe }};
-            var all_problems = {{ all_problems | safe }}.sort();
             var user_ids = {{ user_ids | safe }};
 
             function getSingleProblemFields(){
                 var list = [];
+                var problem_statuses = {{ problem_statuses | safe }};
 
                 for(var i = 1; i <= 5; ++i){
-                    var items = {{ problem_statuses | safe }};
-                    for( var j = 0; j < all_problems.length; ++j ){
-                        items.push({
-                            name: "(" + all_problems[j].toString() + ")",
-                            id: -all_problems[j]
-                        });
-                    }
+                    list.push(function(pNumber){return {
+                        title: "Задача " + pNumber.toString(),
+                        name: "p" + pNumber.toString(),
+                        itemTemplate: function (value, item) {
+                            if (!item["pid" + pNumber]) {
+                                return '';
+                            }
+                            if (!item["p" + pNumber]) {
+                                return $('<span>').css('color', 'gray').text('(' + item["pid" + pNumber] + ')');
+                            }
+                            else {
+                                var j = 0;
+                                while(j < problem_statuses.length && !(problem_statuses[j].id == item["p" + pNumber])){
+                                    ++j;
+                                }
+                                if(j == problem_statuses.length){
+                                    console.log(item["p" + pNumber]);
+                                }
+                                return $('<span>').text(problem_statuses[j].icon);
+                            }
+                        },
+                        editTemplate: function (value, item) {
+                                if (!item["pid" + pNumber]) {
+                                    return '';
+                                }
 
-                    list.push({
-                        title: "Задача " + i.toString(),
-                        name: "p" + i.toString(),
-                        type: "select",
-                        items: items,
-                        valueField: "id",
-                        textField: "name"
-                    });
+                                var $select = $('<select>');
+                                $select.append($('<option>').attr('value', 0).text('(' + item["pid" + pNumber] + ')'));
+
+                                for (var j = 0; j < problem_statuses.length; ++j) {
+                                    var $option = $('<option>').attr(
+                                        'value',
+                                        problem_statuses[j].id
+                                    ).text(
+                                        problem_statuses[j].icon
+                                    );
+                                    if (problem_statuses[j].id == item["p" + pNumber]){
+                                        $option.prop('selected', 'selected');
+                                    }
+                                    $select.append($option);
+                                }
+
+                                $select.on('keydown', function (evt) {
+                                    if(evt.keyCode == 86){
+                                        $(evt.target).find('option[value=5]').prop('selected', 'selected');
+                                    }
+                                    if(evt.keyCode == 67){
+                                        $(evt.target).find('option[value=4]').prop('selected', 'selected');
+                                    }
+                                    if(evt.keyCode == 88){
+                                        $(evt.target).find('option[value=3]').prop('selected', 'selected');
+                                    }
+                                    if(evt.keyCode == 90){
+                                        $(evt.target).find('option[value=2]').prop('selected', 'selected');
+                                    }
+                                    if(evt.keyCode == 39){
+                                        $(evt.target).parent().next().find('select').focus();
+                                        evt.preventDefault();
+                                        return false;
+                                    }
+                                    if(evt.keyCode == 37){
+                                        $(evt.target).parent().prev().find('select').focus();
+                                        evt.preventDefault();
+                                        return false;
+                                    }
+                                });
+                                return this._editSelect = $select;
+                            },
+                        editValue: function () {
+                            return parseInt(this._editSelect.val()) || 0;
+                        }
+                    }}(i));
                 }
                 return list;
             }
@@ -94,8 +152,10 @@
                             data: JSON.stringify({
                                 action: 'load',
                                 filter: filter,
+                                course_id: {{ course_id }},
                                 exposure_ids: exposure_ids,
-                                user_ids: user_ids})
+                                user_ids: user_ids
+                            })
                         });
                     },
                     updateItem: function (item) {
@@ -104,13 +164,31 @@
                             url: "/api/grading",
                             contentType: "application/json",
                             dataType: "json",
-                            data: JSON.stringify({action: 'update', item: item})
+                            data: JSON.stringify({
+                                action: 'update',
+                                item: item,
+                                course_id: {{ course_id }}
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
                         });
                     }
+                },
+                onItemEditing: function(args) {
+                    setTimeout(function(){
+                        $('.jsgrid-edit-row select').first().focus();
+                    }, 50);
                 }
             });
-        })
-        ;
+        });
     </script>
 {% endblock head %}
 

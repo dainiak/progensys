@@ -82,6 +82,7 @@ class Problem(db.Model):
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp_created = db.Column(db.DateTime)
     timestamp_last_modified = db.Column(db.DateTime)
+    is_adhoc = db.Column(db.Boolean)
 
 
 class ProblemRelation(db.Model):
@@ -233,7 +234,7 @@ class Trajectory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
-    suggested_course_id = db.Column(db.Integer, db.ForeignKey('course.id'))
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'))
 
 
 class TrajectoryContent(db.Model):
@@ -247,6 +248,16 @@ class TrajectoryContent(db.Model):
         self.topic_id = topic_id
         if sort_key is not None:
             self.sort_key = sort_key
+
+
+class UserCourseTrajectory(db.Model):
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), primary_key=True)
+    trajectory_id = db.Column(db.Integer, db.ForeignKey('trajectory.id'))
+
+    def __init__(self, user_id, course_id):
+        self.user_id = user_id
+        self.course_id = course_id
 
 
 class ProblemStatus(db.Model):
