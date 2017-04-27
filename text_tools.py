@@ -109,7 +109,6 @@ def latex_to_html(text, variation=None):
 
     text = process_latex_lists(text)
     text = process_problem_variations(text, variation)
-    text = process_xypic_macros(text)
 
     return text
 

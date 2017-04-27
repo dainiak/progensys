@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Печать набора задач #{{ problem_set_id }}{% endblock %}
+{% block head %}
+    <style>
+        a.problem-number {
+            font-weight: bold;
+        }
+        a.problem-number:hover {
+            text-decoration: none;
+        }
+        @media print {
+            a.problem-number {
+                color: black;
+                text-decoration: none;
+            }
+        }
+    </style>
+    <script type="text/javascript">
+        $(function () {
+            $.ajax({
+                type: "POST",
+                url: "/api/problem-set",
+                contentType: "application/json",
+                dataType: "json",
+                data: JSON.stringify({
+                    action: 'load',
+                    problem_set_id: {{ problem_set_id }}
+                })
+            }).done(function (data) {
+                var problemNumber = 0;
+                $.each(data, function (i, e) {
+                    if(e.problem_statement) {
+                        ++problemNumber;
+                        $('div.container').append(
+                            $('<div>')
+                                .addClass('problem')
+                                .append(
+                                    $('<a>')
+                                        .attr('href', '/problem-' + e.problem_id.toString())
+                                        .attr('target', '_blank')
+                                        .addClass('problem-number')
+                                        .text('Задача ' + problemNumber.toString() + '. ')
+                                )
+                                .append(
+                                    $('<span>')
+                                        .addClass('problem-statement')
+                                        .html(e.problem_statement)
+                                )
+                        );
+                    }
+                    else
+                        $('div.container').append(
+                            $('<div>').addClass('extra').html(e.problem_set_extra_content)
+                        );
+                });
+
+                MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+    {% block navbar %}{% endblock navbar %}
+    <div class="container"></div>
+{% endblock body %}

@@ -70,19 +70,19 @@ login_manager.init_app(app)
 def user_loader(user_id):
     return User.query.filter_by(id=user_id).first()
 
-#
-# @login_manager.request_loader
-# def request_loader(req):
-#     user = User.query.filter_by(username=req.form.get('username')).first()
-#     if user is None:
-#         return
-#
-#     if 'pw' in request.form and hasattr(user, 'password_hash') and md5(request.form['pw']) == user.password_hash:
-#         user.is_authenticated = True
-#     else:
-#         user.is_authenticated = False
-#
-#     return user
+
+@login_manager.request_loader
+def request_loader(req):
+    user = User.query.filter_by(username=req.form.get('username')).first()
+    if user is None:
+        return
+
+    if 'pw' in request.form and hasattr(user, 'password_hash') and md5(request.form['pw']) == user.password_hash:
+        user.is_authenticated = True
+    else:
+        user.is_authenticated = False
+
+    return user
 
 
 def notify_user(user_id, subject, body):

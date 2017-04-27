@@ -59,7 +59,7 @@
                     $('#editorModal .modal-title').text('Добавление нового комментария');
                 }
                 else {
-                    $('#editorModal .modal-title').text('Редактирование комментария #' + item.problem_id.toString());
+                    $('#editorModal .modal-title').text('Редактирование комментария #' + item.problem_set_extra_id.toString());
                 }
                 $('#editorModal').modal('show');
                 $('#editorModal')[0].currentItem = item;
@@ -105,23 +105,42 @@
                 {
                     title: "порядковый номер",
                     name: "sort_key",
-                    type: "number"
+                    type: "number",
+                    width: 5
                 },
                 {
                     title: "ID задачи",
                     name: "problem_id",
                     type: "number",
-                    width: 5
-                },
-                {
-                    title: "ID комментария",
-                    name: "problem_set_extra_id",
-                    type: "number",
+                    itemTemplate: function (value, item) {
+                        if(item.problem_id){
+                            return $('<span>').text(item.problem_id);
+                        }
+                        else{
+                            return $('<span>').text('—');
+                        }
+                    },
+                    editTemplate: function (item) {
+                        if(item.problem_id){
+                            return $('<span>').text(item.problem_id);
+                        }
+                        else{
+                            return $('<span>').text('—');
+                        }
+                    },
+                    editValue: function (item) {
+                        if(item.problem_id){
+                            return item.problem_id;
+                        }
+                        else{
+                            return 0;
+                        }
+                    },
                     width: 5
                 },
                 {
                     title: "Текст задачи/комментария",
-                    name: "text",
+                    name: "problem_set_extra_content_raw",
                     type: "textarea",
                     itemTemplate: function (value, item) {
                         if(item.problem_id){
@@ -156,10 +175,8 @@
                 heading: true,
                 filtering: false,
                 sorting: false,
-                paging: false,
                 inserting: true,
                 editing: true,
-                pageLoading: true,
                 autoload: true,
                 noDataContent: "Данных не найдено.",
                 fields: fields,
@@ -184,61 +201,64 @@
                             dataType: "json",
                             data: JSON.stringify({
                                 action: 'delete',
-                                problem_id: item.problem_id
+                                problem_set_id: {{ problem_set_id }},
+                                item: item
                             })
                         }).done(function () {
                             $.toaster({
-                                message : 'Задача удалена',
+                                message : 'Набор задач обновлён',
                                 priority : 'success'
                             });
                         }).fail(function () {
                             $.toaster({
-                                message : 'Не удалось удалить задачу из базы данных',
+                                message : 'Не удалось удалить задачу из набора',
                                 priority : 'danger'
                             });
                         });
                     },
                     updateItem: function (item) {
-                          return $.ajax({
+                        return $.ajax({
                             type: "POST",
                             url: "/api/problem-set",
                             contentType: "application/json",
                             dataType: "json",
                             data: JSON.stringify({
                                 action: 'update',
+                                problem_set_id: {{ problem_set_id }},
                                 item: item
                             })
                         }).done(function () {
                             $.toaster({
-                                message : 'Задача успешно обновлена',
-                                priority : 'success'
+                                message: 'Изменения сохранены',
+                                priority: 'success'
                             });
                         }).fail(function () {
                             $.toaster({
-                                message : 'Не удалось сохранить изменения',
-                                priority : 'danger'
+                                message: 'Не удалось сохранить изменения',
+                                priority: 'danger'
                             });
                         });
                     },
                     insertItem: function (item) {
-                          return $.ajax({
+                        return $.ajax({
                             type: "POST",
                             url: "/api/problem-set",
                             contentType: "application/json",
                             dataType: "json",
                             data: JSON.stringify({
                                 action: 'insert',
+                                problem_set_id: {{ problem_set_id }},
                                 item: item
                             })
                         }).done(function (response) {
                             $.toaster({
-                                message : 'Задача сохранена в базе под номером ' + response.problem_id.toString(),
-                                priority : 'success'
+                                message: 'Изменения сохранены' + response.problem_id.toString(),
+                                priority: 'success'
                             });
                         }).fail(function () {
                             $.toaster({
-                                message : 'Не удалось сохранить изменения',
-                                priority : 'danger'
+                                message: 'Не удалось сохранить изменения',
+                                priority: 'danger'
                             });
                         });
                     }
@@ -251,13 +271,19 @@
                 rowClick: function(args){
                     return false;
                 },
-                onRefreshed: function () {
-                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                onItemInserting: function(args) {
+                    if(!args.item.problem_id && !args.item.problem_set_extra_content_raw
+                        || args.item.problem_id && args.item.problem_set_extra_content_raw) {
+                        args.cancel = true;
+                        alert("Нужно указать ID задачи либо текст комментария, но не одновременно");
+                    }
                 },
                 onItemInserted: function () {
+                    $("#jsGrid").jsGrid("sort", {field: "sort_key"});
                     MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
                 },
                 onItemUpdated: function () {
+                    $("#jsGrid").jsGrid("sort", {field: "sort_key"});
                     MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
                 },
                 onItemEditing: function(args) {
@@ -269,8 +295,11 @@
 
                     $gridData.sortable({
                         update: function(e, ui) {
-                            var reordered_ids = $.map($gridData.find("tr"), function(row) {
-                                return $(row).data("JSGridItem").id;
+                            var reordered_item_ids = $.map($gridData.find("tr"), function(row) {
+                                return {
+                                    problem_id: $(row).data("JSGridItem").problem_id || 0,
+                                    problem_set_extra_id: $(row).data("JSGridItem").problem_set_extra_id || 0
+                                };
                             });
 
                             $.ajax({
@@ -280,8 +309,8 @@
                                 dataType: "json",
                                 data: JSON.stringify({
                                     action: 'reorder',
-                                    trajectory_id: {{ trajectory_id }},
-                                    ids: reordered_ids
+                                    problem_set_id: {{ problem_set_id }},
+                                    items: reordered_item_ids
                                 })
                             }).done(function() {
                                 $.toaster({
@@ -298,7 +327,9 @@
                             });
                         }
                     });
-                },
+
+                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                }
             });
         });
     </script>
