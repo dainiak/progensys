@@ -202,21 +202,10 @@ def view_grading_table(exposure_string, course_id, group=None):
     else:
         user_ids = list(map(lambda x: x[0], db.session.query(User.id).all()))
 
-    all_problems = list(map(
-        lambda x: x[0],
-        db.session.query(
-            Problem.id
-        ).filter(
-            Problem.id == ProblemSetContent.problem_id,
-            ExposureContent.problem_set_id == ProblemSetContent.problem_set_id,
-            ExposureContent.exposure_id.in_(exposure_ids),
-            ExposureContent.user_id.in_(user_ids))
-        .all()))
     problem_statuses = [{'icon': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
     return render_template(
         'view_grading_results.html',
-        all_problems=to_json_string(all_problems),
         exposure_ids=to_json_string(exposure_ids),
         user_ids=to_json_string(user_ids),
         problem_statuses=to_json_string(problem_statuses),

@@ -1,14 +1,25 @@
 from flask import Blueprint, render_template, request, abort, jsonify
-from blueprints.models import db, Role, Problem, Participant, ProblemTopicAssignment, Topic, Course
+from blueprints.models import \
+    db, \
+    Role, \
+    Problem, \
+    Participant, \
+    ProblemTopicAssignment, \
+    Topic, \
+    Course
 from text_tools import process_problem_statement
 import flask_login
 
 problems_blueprint = Blueprint('problems', __name__, template_folder='templates')
 
+
 @problems_blueprint.route('/problems/all', methods=['GET'])
+@problems_blueprint.route('/problems/', methods=['GET'])
 @problems_blueprint.route('/problems', methods=['GET'])
-def view():
-    return render_template('view.html')
+@problems_blueprint.route('/problem-<int:problem_id>/', methods=['GET'])
+@problems_blueprint.route('/problem-<int:problem_id>', methods=['GET'])
+def view_problems(problem_id=None):
+    return render_template('view_problems.html', problem_id=problem_id)
 
 
 @problems_blueprint.route('/api/problems', methods=['POST'])
@@ -46,29 +57,28 @@ def api():
         )
 
         if json.get('filter'):
-            filter = json.get('filter')
-            if filter.get('problem_id'):
-                query = query.filter(Problem.id == filter.get('problem_id'))
-            if filter.get('topic_codes'):
-                topic_codes = filter.get('topic_codes').strip().split()
+            filter_params = json.get('filter')
+            if filter_params.get('problem_id'):
+                query = query.filter(Problem.id == filter_params.get('problem_id'))
+            if filter_params.get('topic_codes'):
+                topic_codes = filter_params.get('topic_codes').strip().split()
                 query = query.filter(
                     ProblemTopicAssignment.problem_id == Problem.id,
                     ProblemTopicAssignment.topic_id == Topic.id,
                     Topic.code.in_(topic_codes)
                 )
-            if filter.get('problem_statement'):
-                statement_filter = filter.get('problem_statement')
+            if filter_params.get('problem_statement'):
+                statement_filter = filter_params.get('problem_statement')
                 query = query.filter(Problem.statement.like('%{}%'.format(statement_filter)))
 
-            if filter.get('page_index') is not None and filter.get('page_size'):
-                count = query.count()
-                page_index = filter['page_index'] - 1
-                page_size = filter['page_size']
+            if filter_params.get('page_index') is not None and filter_params.get('page_size'):
+                page_index = filter_params['page_index'] - 1
+                page_size = filter_params['page_size']
                 query = query.slice(page_index * page_size, page_index * page_size + page_size)
 
         data = query.all()
         return jsonify({
-            'itemsCount': count,
+            'itemsCount': len(data),
             'data': list(
                 {
                     'problem_id': problem_id,
@@ -76,10 +86,7 @@ def api():
                     'problem_statement': process_problem_statement(problem_statement),
                     'topic_codes': topic_codes
                 }
-                for problem_id,
-                    problem_statement,
-                    topic_codes
-                in data
+                for problem_id, problem_statement, topic_codes in data
             )
         })
 

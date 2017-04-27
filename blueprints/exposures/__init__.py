@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for
 import flask_login
 
 from blueprints.models import \
@@ -30,6 +30,8 @@ from pulp import LpProblem, LpVariable, LpAffineExpression, LpMinimize, LpStatus
 from collections import defaultdict
 from functools import reduce
 
+#from text_tools import latex_to_html
+
 exposures_blueprint = Blueprint('exposures', __name__, template_folder='templates')
 
 
@@ -43,7 +45,7 @@ def api_exposure():
                 Participant.course_id == flask_login.current_user.current_course_id,
                 Participant.role_id == Role.id,
                 Role.code == 'ADMIN'
-            ).exists():
+            ).first():
         abort(403)
 
     json = request.get_json()
@@ -196,20 +198,20 @@ def api_exposure():
         return jsonify(item)
 
 
-@exposures_blueprint.route('/exposure/date-<exposure_date>', methods=['GET'])
+@exposures_blueprint.route('/course-<int:course_id>/exposure/date-<exposure_date>', methods=['GET'])
 @flask_login.login_required
-def view_exposure_table(exposure_date):
+def view_exposure_table(course_id, exposure_date):
     if not db.session.query(
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == course_id,
                 Participant.role_id == Role.id,
                 Role.code == 'ADMIN'
-            ).exists():
+            ).first():
         abort(403)
 
-    exposures = Exposure.query.all()
+    exposures = Exposure.query.filter(Exposure.course_id == course_id).all()
     exposure_ids = list(map(
         attrgetter('id'),
         filter(lambda x: x.timestamp.isoformat()[:10] == exposure_date, exposures)
@@ -232,7 +234,7 @@ def view_exposure_table(exposure_date):
     problem_statuses = [{'name': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
     return render_template(
-        'templates/view_exposures.html',
+        'view_exposures.html',
         all_problems=to_json_string(all_problems),
         exposure_ids=to_json_string(exposure_ids),
         user_ids=to_json_string(user_ids),
@@ -242,22 +244,19 @@ def view_exposure_table(exposure_date):
 
 @exposures_blueprint.route('/exposure/new', methods=['POST'])
 def new_exposure():
-    if request.form and request.form.get('user_ids'):
-        user_ids = list(map(int, request.form.get('user_ids').split(',')))
-        course_id = int(request.form.get('course_id', 0))
-        exposure_timestamp = request.form.get('exposure_timestamp')
-        exposure_title = request.form.get('exposure_title', '')
-        exposure_type = request.form.get('exposure_type', 'auto')
-        if exposure_type == 'manual':
-            problem_set_id = int(request.form.get('problem_set_id', 0))
-    else:
+    if not (request.form and request.form.get('user_ids')):
         abort(400)
 
-    if exposure_type == 'auto':
-        max_problems_per_user = int(request.args.get('max', 5))
-        current_variation = defaultdict(int)
+    user_ids = list(map(int, request.form.get('user_ids').split(',')))
+    course_id = int(request.form.get('course_id', 0))
+    exposure_timestamp = request.form.get('exposure_timestamp')
+    exposure_title = request.form.get('exposure_title', '')
+    exposure_type = request.form.get('exposure_type', 'auto')
+    if exposure_type == 'manual':
+        problem_set_id = int(request.form.get('problem_set_id', 0))
 
-        users = db.session.query(User.id, Trajectory.id).filter(
+    if exposure_type == 'auto':
+        user_trajectories = db.session.query(User.id, Trajectory.id).filter(
             User.id.in_(user_ids),
             Participant.user_id == User.id,
             Participant.course_id == course_id,
@@ -270,7 +269,7 @@ def new_exposure():
 
         trajectory_contents_dict = dict()
 
-        for _, trajectory_id in users:
+        for _, trajectory_id in user_trajectories:
             if trajectory_id not in trajectory_contents_dict:
                 trajectory_topic_ids = [x[0] for x in db.session.query(TrajectoryContent.topic_id).filter(
                     TrajectoryContent.trajectory_id == trajectory_id
@@ -287,11 +286,11 @@ def new_exposure():
         )
 
         problem_ids = set()
-        problems_by_topic = defaultdict(dict)
+        problems_by_topic = defaultdict(set)
         for pta in ProblemTopicAssignment.query.filter(
                     ProblemTopicAssignment.topic_id.in_(topic_ids)
                 ).all():
-            problems_by_topic[pta.topic_id][pta.problem_id] = pta.weight
+            problems_by_topic[pta.topic_id].add(pta.problem_id)
             problem_ids.add(pta.problem_id)
 
         problems = {
@@ -302,27 +301,48 @@ def new_exposure():
         clones = defaultdict(set)
         for p1, p2 in db.session.query(
                     ProblemRelation.from_id,
-                    ProblemRelation.to_id,
-                    ProblemRelation.type_id == ProblemRelationType.id,
-                    ProblemRelationType.code == 'CLONE_OF'
+                    ProblemRelation.to_id
                 ).filter(
+                    ProblemRelation.type_id == ProblemRelationType.id,
+                    ProblemRelationType.code == 'CLONE_OF',
                     ProblemRelation.to_id.in_(problem_ids)
                 ):
             clones[p1].add(p2)
             clones[p2].add(p1)
         for problem_id in clones:
             while True:
-                expanded_clone_ids = clones[problem_id]
-                initial_size = len(expanded_clone_ids)
-                for clone_id in clones[problem_id]:
-                    expanded_clone_ids |= clones[clone_id]
-                if len(expanded_clone_ids) == initial_size:
+                expanded_clone_ids = reduce(
+                    operator_or,
+                    (clones[clone_id] for clone_id in clones[problem_id]),
+                    clones[problem_id]
+                )
+                if len(expanded_clone_ids) == len(clones[problem_id]):
                     break
                 else:
                     clones[problem_id] = expanded_clone_ids
 
-        count_clones_as_single_problem_in_trajectory_fulfillment = True
-        for user_id, trajectory_id in users:
+        problems_count = {p_id: p_count for p_id, p_count in db.session.query(
+            ProblemStatus.problem_id, db.func.count(ProblemStatus.user_id)
+        ).filter(
+            ProblemStatus.problem_id.in_(problem_ids),
+            ProblemStatus.user_id.in_(user_ids),
+            ProblemStatus.status_id == ProblemStatusInfo.id,
+            ProblemStatusInfo.code != 'NOT_EXPOSED'
+        ).group_by(ProblemStatus.problem_id).all()}
+
+        count_clones_as_single_problem_in_trajectory_fulfillment = False
+        penalty_for_having_same_problem_on_next_quiz = 1
+        penalty_for_not_giving_a_brand_new_problem = 1
+        penalty_for_giving_clone_of_exposed_problem = 1
+        penalty_for_having_underflow = 1000
+        max_problems_per_user = int(request.args.get('max', 5))
+
+        lp = LpProblem(name='Test Generation', sense=LpMinimize)
+        lp_objective = LpAffineExpression()
+
+        lp_vars_user_problem = dict()
+
+        for user_id, trajectory_id in user_trajectories:
             user_problems_solved = set(x[0] for x in db.session.query(ProblemStatus.problem_id).filter(
                 ProblemStatus.user_id == user_id,
                 ProblemStatus.status_id == ProblemStatusInfo.id,
@@ -333,11 +353,11 @@ def new_exposure():
                 ProblemStatus.status_id == ProblemStatusInfo.id,
                 ProblemStatusInfo.code.in_(['EXPOSED', 'SOLUTION_WRONG'])
             ).all())
-            # user_problems_solved_clones = reduce(
-            #     operator_or,
-            #     (clones[problem_id] for problem_id in user_problems_solved[user_id]),
-            #     set()
-            # )
+            user_problems_solved_clones = reduce(
+                operator_or,
+                (clones[problem_id] for problem_id in user_problems_solved),
+                set()
+            ) - user_problems_solved
 
             user_problems_remaining_for_counting = set(user_problems_solved)
             user_remaining_trajectory_topics = []
@@ -351,132 +371,119 @@ def new_exposure():
                 else:
                     user_remaining_trajectory_topics.append(topic_id)
 
+            if count_clones_as_single_problem_in_trajectory_fulfillment:
+                user_problems_solved |= user_problems_solved_clones
 
+            problems_available_for_user = reduce(
+                operator_or,
+                (problems_by_topic[topic_id] for topic_id in user_remaining_trajectory_topics),
+                set()
+            ) - user_problems_solved
 
+            for problem_id in problems_available_for_user:
+                lp_vars_user_problem[(user_id, problem_id)] = LpVariable(
+                    name='user_problem_{}_{}'.format(user_id, problem_id),
+                    cat='Binary'
+                )
 
-        # user_history = defaultdict(lambda: {i: -1 for i in problem_ids})
-        # num_appearances = defaultdict(int)
-        # exposed_problems = defaultdict(set)
-        # remaining_trajectory_items = dict()
-        #
-        # for user_id in users:
-        #     counted_problems = set()
-        #     problems_available_for_user[user_id] = set(problem_ids)
-        #     user_history_items = History.query.filter(History.user == user_id, History.problem.in_(problem_ids))
-        #     for h in user_history_items:
-        #         if h.event in event_to_number:
-        #             user_history[user_id][h.problem] = max(user_history[user_id][h.problem], event_to_number[h.event])
-        #             num_appearances[h.problem] += 1
-        #             exposed_problems[user_id].add(h.problem)
-        #     user_remaining_trajectory_items = trajectory_list[:]
-        #     for i, t in enumerate(user_remaining_trajectory_items):
-        #         for problem_id in problems_by_topic[t]:
-        #             if user_history[user_id][problem_id] >= 2 and problem_id not in counted_problems:
-        #                 user_remaining_trajectory_items[i] = 0
-        #                 problems_available_for_user[user_id].remove(problem_id)
-        #                 if problem_id in clones:
-        #                     problems_available_for_user[user_id] -= clones[problem_id]
-        #                 break
-        #     problems_for_user_uncovered_topics = set()
-        #     user_remaining_trajectory_items = list(filter(None, user_remaining_trajectory_items))
-        #     for topic_id in user_remaining_trajectory_items:
-        #         problems_for_user_uncovered_topics.update(problems_by_topic[topic_id])
-        #     problems_available_for_user[user_id].intersection_update(problems_for_user_uncovered_topics)
-        #     remaining_trajectory_items[user_id] = user_remaining_trajectory_items
-        #
-        # penalty_for_having_same_problem_on_next_quiz = 1
-        # penalty_for_not_giving_a_brand_new_problem = 1
-        # penalty_for_giving_clone_of_exposed_problem = 1
-        # penalty_for_having_underflow = 1000
-        #
-        # lp = LpProblem(name='Test Generation', sense=LpMinimize)
-        # lp_objective = LpAffineExpression()
-        #
-        # lp_vars_user_problem = dict()
-        # for user_id in users:
-        #     for problem_id in problems_available_for_user[user_id]:
-        #         lp_vars_user_problem[(user_id, problem_id)] = LpVariable(
-        #             name='user_problem_{}_{}'.format(user_id, problem_id), cat='Binary')
-        #
-        # for user_id in users:
-        #     # Number of problems for user should definitely not exceed the maximum
-        #     lp += (sum(lp_vars_user_problem[(user_id, problem_id)] for problem_id in
-        #                problems_available_for_user[user_id]) <= max_problems_per_user)
-        #     # Number of problems for user should preferably be no less than minimum
-        #     min_problems = min(max_problems_per_user, len(problems_available_for_user[user_id]),
-        #                        len(remaining_trajectory_items))
-        #     lp_underflow_variable = LpVariable('underflow_{}'.format(user_id), lowBound=0)
-        #     lp += (sum(lp_vars_user_problem[(user_id, problem_id)] for problem_id in
-        #                problems_available_for_user[user_id]) + lp_underflow_variable >= min_problems)
-        #     lp_objective += penalty_for_having_underflow * lp_underflow_variable
-        #
-        # for user_id in users:
-        #     for level in set(topic_levels.values()):
-        #         lp_vars_levels = {level: LpVariable(name='user_level_{}_{}'.format(user_id, level), cat='Binary')}
-        #     for level_lower, level_upper in combinations(set(topic_levels.values()), 2):
-        #         if level_lower > level_upper:
-        #             level_lower, level_upper = level_upper, level_lower
-        #
-        #     for topic_id in remaining_trajectory_items[user_id]:
-        #         problems_for_user_and_topic = problems_by_topic[topic_id] & problems_available_for_user[user_id]
-        #         if len(problems_for_user_and_topic) >= 2:
-        #             # The number of problems for any topic should not exceed the number
-        #             # of times this topic appears in a trajectory
-        #             # TODO: make it work when the number of times exceeds 2
-        #             lp += (
-        #                 sum(lp_vars_user_problem[(user_id, problem_id)] for problem_id in
-        #                     problems_for_user_and_topic) <= 1)
-        #         lp_var = LpVariable(name='gets_topic_{}_{}'.format(user_id, topic_id), cat='Binary')
-        #         lp += (lp_var >= topic_levels[topic_id])
-        #
-        # for user_id in users:
-        #     for problem_id in problems_available_for_user[user_id]:
-        #         if problem_id in exposed_problems[user_id]:
-        #             lp_objective += penalty_for_having_same_problem_on_next_quiz * lp_vars_user_problem[
-        #                 (user_id, problem_id)]
-        #         if num_appearances[problem_id] > 0:
-        #             lp_objective += penalty_for_not_giving_a_brand_new_problem * lp_vars_user_problem[
-        #                 (user_id, problem_id)]
-        #     clones_of_exposed_problems = reduce(operator_or,
-        #                                         (clones[problem_id] for problem_id in exposed_problems[user_id]),
-        #                                         set()) - exposed_problems[user_id]
-        #     for problem_id in problems_available_for_user[user_id] & clones_of_exposed_problems:
-        #         lp_objective += penalty_for_giving_clone_of_exposed_problem * lp_vars_user_problem[
-        #             (user_id, problem_id)]
-        #
-        # lp.setObjective(lp_objective)
-        #
+            # Number of problems for user should definitely not exceed the maximum
+            lp += (
+                sum(
+                    lp_vars_user_problem[(user_id, problem_id)]
+                    for problem_id in problems_available_for_user
+                )
+                <=
+                max_problems_per_user
+            )
+
+            min_problems = min(
+                max_problems_per_user,
+                len(problems_available_for_user),
+                len(user_remaining_trajectory_topics)
+            )
+
+            lp_underflow_variable = LpVariable(
+                'underflow_{}'.format(user_id),
+                lowBound=0
+            )
+            lp += (
+                sum(
+                    lp_vars_user_problem[(user_id, problem_id)]
+                    for problem_id in problems_available_for_user
+                )
+                + lp_underflow_variable
+                >=
+                min_problems
+            )
+            lp_objective += penalty_for_having_underflow * lp_underflow_variable
+
+            for problem_id in problems_available_for_user:
+                if problem_id in user_problems_seen:
+                    lp_objective += (
+                        penalty_for_having_same_problem_on_next_quiz
+                        *
+                        lp_vars_user_problem[(user_id, problem_id)]
+                    )
+                if problems_count.get(problem_id, 0) > 2:
+                    lp_objective += (
+                        penalty_for_not_giving_a_brand_new_problem
+                        *
+                        lp_vars_user_problem[(user_id, problem_id)]
+                    )
+
+            user_problems_seen_clones = reduce(
+                operator_or,
+                (clones[problem_id] for problem_id in user_problems_seen),
+                set()
+            ) - user_problems_seen - user_problems_solved
+
+            for problem_id in problems_available_for_user & user_problems_seen_clones:
+                lp_objective += (
+                    penalty_for_giving_clone_of_exposed_problem
+                    *
+                    lp_vars_user_problem[(user_id, problem_id)]
+                )
+
+            lp.setObjective(lp_objective)
+
         # try:
-        #     lp.solve()
-        #     log_info = 'Problem status is “{}” with objective function value “{}”'.format(LpStatus[lp.status],
-        #                                                                                   lp.objective.value())
+        lp.solve()
+        log_info = 'Problem status is “{}” with objective function value “{}”'.format(
+            LpStatus[lp.status],
+            lp.objective.value()
+        )
         # except:
         #     log_info = 'Failed to solve the linear program'
-        #
-        # problem_sets = defaultdict(list)
-        # for user_id, problem_id in lp_vars_user_problem:
-        #     if lp_vars_user_problem[(user_id, problem_id)].value() > 0:
-        #         problem = problems_for_trajectory[problem_id]
-        #         problem_sets[user_id].append({
-        #             'id': problem_id,
-        #             'text': latex_to_html(problem.statement, variation=current_variation[problem_id]),
-        #             'level': topic_levels[int(problem.topics)]
-        #         })
-        #
-        #         current_variation[problem_id] += 1
-        #
-        # return render_template(
-        #     'test_printout.html',
-        #     problems=problem_sets,
-        #     users=users,
-        #     group=group_number,
-        #     suggested_test_number=suggested_test_number,
-        #     date=date.today().isoformat(),
-        #     max_problems=max_problems_per_user,
-        #     log_info=log_info)
+        #     return jsonify(error='Failed to solve the linear program')
+
+        problem_sets = defaultdict(list)
+        for user_id, problem_id in lp_vars_user_problem:
+            if lp_vars_user_problem[(user_id, problem_id)].value() > 0:
+                problem_sets[user_id].append(problem_id)
 
         exposure = Exposure()
         exposure.course_id = course_id
         exposure.title = exposure_title
         exposure.timestamp = datetime.strptime(exposure_timestamp, '%Y-%m-%dT%H:%M')
         db.session.add(exposure)
+        db.session.flush()
+
+        for user_id in problem_sets:
+            problem_set = ProblemSet()
+            problem_set.is_adhoc = True
+            problem_set.title = 'Автоматически сгенерированный вариант для пользователя #{} выдачи #{}'.format(
+                user_id,
+                exposure.id
+            )
+            db.session.add(problem_set)
+            db.session.flush()
+            db.session.add(ExposureContent(exposure.id, user_id, problem_set.id))
+            for problem_id in problem_sets[user_id]:
+                db.session.add(ProblemSetContent(problem_set.id, problem_id))
+
+        db.session.commit()
+        return redirect(url_for(
+            'grading.view_grading_table',
+            exposure_string=str(exposure.id),
+            course_id=course_id,
+            group=None))

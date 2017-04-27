@@ -1,13 +1,14 @@
 # coding=utf8
 
 from flask import Flask
-from flask import render_template, request, redirect, url_for, jsonify
+from flask import render_template, request, redirect, url_for
 
 from flask_mail import Mail, Message
 
 from blueprints.models import db, Problem, Topic, User, Trajectory, History
 
 from blueprints.problems import problems_blueprint
+from blueprints.problem_set import problem_set_blueprint
 from blueprints.courses import courses_blueprint
 from blueprints.users import users_blueprint
 from blueprints.exposures import exposures_blueprint
@@ -15,20 +16,10 @@ from blueprints.grading import grading_blueprint
 from blueprints.trajectory import trajectory_blueprint
 from blueprints.autocompletion import autocompletion_blueprint
 
-from collections import defaultdict
-
 import flask_login
-from pulp import LpProblem, LpVariable, LpAffineExpression, LpMinimize, LpStatus
-from operator import attrgetter
-from operator import or_ as operator_or
-from itertools import combinations
-from functools import reduce
 
 # Security sensitive constants are imported from a file not being synced with github
 from tpbeta_security import *
-
-from text_tools import *
-
 
 def parse_person_name(name):
     tokens = name.strip().split()
@@ -44,6 +35,7 @@ def parse_person_name(name):
 app = Flask(__name__)
 app.register_blueprint(autocompletion_blueprint)
 app.register_blueprint(problems_blueprint)
+app.register_blueprint(problem_set_blueprint)
 app.register_blueprint(courses_blueprint)
 app.register_blueprint(users_blueprint)
 app.register_blueprint(exposures_blueprint)
