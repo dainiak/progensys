@@ -103,6 +103,7 @@ def latex_to_html(text, variation=None):
     text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)
     text = escape(text)
     text = re.compile(r'\\emph{(.*?)}', re.DOTALL).sub(lambda m: r'<em>{0}</em>'.format(m.group(1)), text)
+    text = re.compile(r'\\section{(.*?)}', re.DOTALL).sub(lambda m: r'<div class="latex-section">{0}</div>'.format(m.group(1)), text)
     text = re.compile(r'\\textit{(.*?)}', re.DOTALL).sub(lambda m: r'<em>{0}</em>'.format(m.group(1)), text)
     text = re.compile(r'\\textbf{(.*?)}', re.DOTALL).sub(lambda m: r'<strong>{0}</strong>'.format(m.group(1)), text)
     text = re.sub(r'\\,', ' ', text).replace('---', '—').replace('--', '–').replace('~', '&nbsp;')

@@ -114,6 +114,15 @@
                     $("#jsGrid").jsGrid("insertItem", item);
                 else
                     $("#jsGrid").jsGrid("updateItem", item);
+
+                if(!closeModal){
+                    if(item.isNew){
+                        $('#editProblemModal .modal-title').text('Добавление новой задачи');
+                    }
+                    else {
+                        $('#editProblemModal .modal-title').text('Редактирование задачи #' + item.problem_id.toString());
+                    }
+                }
             }
 
             $('#editProblemModal button.button-save-changes').click(function(){
@@ -295,6 +304,7 @@
                                 item: item
                             })
                         }).done(function (response) {
+                            item.isNew = false;
                             $.toaster({
                                 message : 'Задача сохранена в базе под номером ' + response.problem_id.toString(),
                                 priority : 'success'

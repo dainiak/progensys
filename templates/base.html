@@ -18,8 +18,6 @@
 
 {% block mathjax_include %}
 <script type="text/x-mathjax-config">
-MathJax.Ajax.config.path['Contrib'] = '//cdn.mathjax.org/mathjax/contrib';
-
 MathJax.Hub.Config({
     skipStartupTypeset: true,
     messageStyle: 'none',
@@ -99,7 +97,7 @@ MathJax.Hub.Config({
 	}
 });
 </script>
-<script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js"></script>
 {% endblock mathjax_include %}
 
 <script type="text/javascript">

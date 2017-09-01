@@ -49,11 +49,7 @@ def api():
     if action == 'load':
         query = db.session.query(
             Problem.id,
-            Problem.statement,
-            Topic.code,
-        ).filter(
-            Topic.id == ProblemTopicAssignment.topic_id,
-            Problem.id == ProblemTopicAssignment.problem_id
+            Problem.statement
         )
 
         if json.get('filter'):
@@ -77,6 +73,7 @@ def api():
                 query = query.slice(page_index * page_size, page_index * page_size + page_size)
 
         data = query.all()
+
         return jsonify({
             'itemsCount': len(data),
             'data': list(
@@ -84,9 +81,12 @@ def api():
                     'problem_id': problem_id,
                     'problem_statement_raw': problem_statement,
                     'problem_statement': process_problem_statement(problem_statement),
-                    'topic_codes': topic_codes
+                    'topic_codes': '\n'.join(x[0] for x in db.session.query(Topic.code).filter(
+                        Topic.id == ProblemTopicAssignment.topic_id,
+                        ProblemTopicAssignment.problem_id == problem_id
+                    ).all())
                 }
-                for problem_id, problem_statement, topic_codes in data
+                for problem_id, problem_statement in data
             )
         })
 

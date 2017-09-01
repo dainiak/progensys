@@ -124,8 +124,11 @@
                         {
                             title: "ID набора",
                             name: "problem_set_id",
-                            itemTemplate: function(value) {
-                                return $("<span>").text(value);
+                            itemTemplate: function(value, item) {
+                                if(item.problem_set_is_adhoc){
+                                    return $("<a>").attr('href', '/problem-set-' + value).html(value + '<sup>a</sup>');
+                                }
+                                return $("<a>").attr('href', '/problem-set-' + value).text(value);
                             },
                             filtering: false
                         }

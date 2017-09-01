@@ -72,7 +72,7 @@ def api_courses():
         if role_code in ['ADMIN', 'INSTRUCTOR']:
             action_list.append({
                 'title': 'Редактирование задач',
-                'url': url_for('problems.view')
+                'url': url_for('problems.view_problems')
             })
         if role_code in ['ADMIN', 'INSTRUCTOR']:
             action_list.append({

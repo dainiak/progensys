@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Результаты{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script src="/static/js/jquery.toaster.js"></script>
+
+    <script>
+        $(function () {
+            function getSingleProblemFields(){
+                var list = [];
+                for(var i = 1; i <= 5; ++i){
+                    list.push(function(pNumber){return {
+                        title: "Задача " + pNumber.toString(),
+                        name: "pid" + pNumber.toString(),
+                        itemTemplate: function (value) {
+                            return $('<a>').attr('href', '/problem-' + value).text(value);
+                        }
+                    }}(i));
+                }
+                return list;
+            }
+
+            var problemFields = getSingleProblemFields();
+            var fields = [
+                {
+                    title: "Студент",
+                    name: "learner_name",
+                    itemTemplate: function(value) {
+                        return $("<span>").text(value);
+                    },
+                    filtering: false
+                },
+                {
+                    title: "ID набора",
+                    name: "problem_set_id",
+                    itemTemplate: function(value, item) {
+                        if(item.problem_set_is_adhoc){
+                            return $("<a>").attr('href', '/problem-set-' + value).html(value + '<sup>a</sup>');
+                        }
+                        return $("<a>").attr('href', '/problem-set-' + value).text(value);
+                    },
+                    filtering: false
+                }
+            ].concat(problemFields).concat([{
+                type: "control", modeSwitchButton: false, editButton: true, deleteButton: false
+            }]);
+
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                inserting: false,
+                heading: true,
+                editing: false,
+                filtering: false,
+                sorting: true,
+                paging: false,
+                autoload: true,
+                fields: fields,
+                controller: {
+                    loadData: function (filter) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/exposure",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'load',
+                                filter: filter,
+                                course_id: {{ course_id }},
+                                exposure_id: {{ exposure_id }}
+                            })
+                        });
+                    },
+                    updateItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/exposure",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'update',
+                                item: item,
+                                course_id: {{ course_id }}
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    }
+                },
+                onItemEditing: function(args) {
+                    setTimeout(function(){
+                        $('.jsgrid-edit-row select').first().focus();
+                    }, 50);
+                }
+            });
+        });
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <div id="jsGrid"></div>
+{% endblock body %}

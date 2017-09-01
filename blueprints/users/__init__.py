@@ -213,7 +213,7 @@ def api_authorization():
         user = User.query.filter_by(username=request.form.get('username')).first()
         if user is not None and hasattr(user, 'password_hash') and md5(request.form.get('password')) == user.password_hash:
             flask_login.login_user(user)
-            return redirect(url_for('view_courses'))
+            return redirect(url_for('courses.view_courses'))
         else:
             abort(403)
 

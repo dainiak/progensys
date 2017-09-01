@@ -35,60 +35,98 @@ from functools import reduce
 exposures_blueprint = Blueprint('exposures', __name__, template_folder='templates')
 
 
-@exposures_blueprint.route('/api/exposure', methods=['POST'])
-@flask_login.login_required
-def api_exposure():
+@exposures_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/', methods=['GET'])
+@exposures_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>', methods=['GET'])
+def view_exposure(course_id, exposure_string):
     if not db.session.query(
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == flask_login.current_user.current_course_id,
+                Participant.course_id == course_id,
+                Participant.role_id == Role.id,
+                Role.code.in_(['ADMIN', 'INSTRUCTOR', 'GRADER'])
+            ).first():
+        abort(403)
+
+    if '-' in exposure_string:
+        exposures = Exposure.query.filter_by(course_id=course_id).all()
+        exposure_ids = list(map(
+            attrgetter('id'),
+            filter(lambda x: x.timestamp.isoformat()[:10] == exposure_string, exposures)
+        ))
+        if exposure_ids:
+            exposure_id = exposure_ids[0]
+        else:
+            abort(404)
+    elif exposure_string.isdecimal():
+        exposure_id = int(exposure_string)
+        if not Exposure.query.filter_by(course_id=course_id, id=exposure_id).first():
+            abort(404)
+    else:
+        abort(400)
+
+    return render_template(
+        'view_exposure.html',
+        exposure_id=exposure_id,
+        course_id=course_id
+    )
+
+
+@exposures_blueprint.route('/api/exposure', methods=['POST'])
+@flask_login.login_required
+def api_exposure():
+    json = request.get_json()
+    if not json or 'action' not in json:
+        return jsonify(error='Expected JSON format and action')
+
+    if not json or 'action' not in json or 'course_id' not in json:
+        abort(400)
+
+    course_id = json['course_id']
+
+    if not db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == flask_login.current_user.id,
+                Participant.course_id == course_id,
                 Participant.role_id == Role.id,
                 Role.code == 'ADMIN'
             ).first():
         abort(403)
 
-    json = request.get_json()
-    if not json or 'action' not in json:
-        return jsonify(error='Expected JSON format and action')
-
     if json['action'] == 'load':
-        if not json.get('user_ids'):
-            return jsonify(error='User IDs not specified')
-        if not json.get('exposure_ids'):
-            return jsonify(error='Exposure IDs not specified')
+        if not json.get('exposure_id'):
+            abort(400)
 
-        exposure_ids = json.get('exposure_ids')
-        user_ids = json.get('user_ids')
+        exposure_id = json.get('exposure_id')
         db_data = db.session.query(
             User.name_last,
             User.name_first,
             User.id,
-            Exposure.timestamp,
-            Exposure.id,
-            ExposureContent.problem_set_id
+            ProblemSet.id,
+            ProblemSet.is_adhoc
         ).filter(
-            User.id.in_(user_ids),
-            Exposure.id.in_(exposure_ids),
+            Exposure.id == exposure_id,
+            Exposure.course_id == course_id,
             ExposureContent.user_id == User.id,
-            ExposureContent.exposure_id == Exposure.id
+            ExposureContent.exposure_id == Exposure.id,
+            ExposureContent.problem_set_id == ProblemSet.id
         ).all()
+
         data_for_frontend = []
 
         for user_name_last, \
             user_name_first, \
             user_id, \
-            exposure_timestamp, \
-            exposure_id, \
-            problem_set_id \
+            problem_set_id, \
+            problem_set_is_adhoc \
                 in db_data:
             data_for_frontend.append(dict())
             data_for_frontend[-1]['user_id'] = user_id
-            data_for_frontend[-1]['exposure_id'] = exposure_id
             data_for_frontend[-1]['problem_set_id'] = problem_set_id
-            data_for_frontend[-1]['exposure_date'] = exposure_timestamp.isoformat()[:10]
+            data_for_frontend[-1]['problem_set_is_adhoc'] = problem_set_is_adhoc
             data_for_frontend[-1]['learner_name'] = '{} {}'.format(user_name_last, user_name_first)
-            problem_ids = list(map(
+            problem_ids = map(
                 lambda x: x[0],
                 db.session.query(
                     ProblemSetContent.problem_id
@@ -96,24 +134,9 @@ def api_exposure():
                     ProblemSetContent.problem_set_id == problem_set_id
                 ).order_by(
                     ProblemSetContent.sort_key
-                ).all()))
-            graded_problems = db.session.query(
-                ExposureGradingResult.problem_id,
-                ExposureGradingResult.problem_status_id
-            ).filter(
-                ExposureGrading.exposure_id == exposure_id,
-                ExposureGradingResult.exposure_grading_id == ExposureGrading.id,
-                ExposureGradingResult.user_id == user_id,
-                ExposureGradingResult.problem_set_id == problem_set_id
-            ).all()
-            graded_problems = {p[0]: p[1] for p in graded_problems}
-
+                ).all())
             for problem_position, problem_id in enumerate(problem_ids):
                 problem_position += 1
-                data_for_frontend[-1]['p{}'.format(problem_position)] = graded_problems.get(
-                    problem_id,
-                    -problem_id
-                )
                 data_for_frontend[-1]['pid{}'.format(problem_position)] = problem_id
 
         return jsonify(data_for_frontend)
@@ -247,8 +270,8 @@ def new_exposure():
     if not (request.form and request.form.get('user_ids')):
         abort(400)
 
-    user_ids = list(map(int, request.form.get('user_ids').split(',')))
     course_id = int(request.form.get('course_id', 0))
+    user_ids = list(map(int, request.form.get('user_ids').split(',')))
     exposure_timestamp = request.form.get('exposure_timestamp')
     exposure_title = request.form.get('exposure_title', '')
     exposure_type = request.form.get('exposure_type', 'auto')
@@ -334,6 +357,7 @@ def new_exposure():
         penalty_for_having_same_problem_on_next_quiz = 1
         penalty_for_not_giving_a_brand_new_problem = 1
         penalty_for_giving_clone_of_exposed_problem = 1
+        penalty_for_giving_clones = 10
         penalty_for_having_underflow = 1000
         max_problems_per_user = int(request.args.get('max', 5))
 
@@ -417,6 +441,47 @@ def new_exposure():
             )
             lp_objective += penalty_for_having_underflow * lp_underflow_variable
 
+            # Number of problems for each topic should not exceed the number required by the trajectory
+            for topic_id in set(user_remaining_trajectory_topics):
+                lp += (
+                    sum(
+                        lp_vars_user_problem[(user_id, problem_id)]
+                        for problem_id in problems_by_topic[topic_id] & problems_available_for_user
+                    )
+                    <=
+                    sum(
+                        1
+                        for i in user_remaining_trajectory_topics if i == topic_id
+                    )
+                )
+
+            # Introduce penalty for giving clones at the same time
+            family_of_clone_sets = list()
+            problems_available_for_user_copy = set(problems_available_for_user)
+            while problems_available_for_user_copy:
+                problem_id = next(iter(problems_available_for_user_copy))
+                next_part = ({problem_id} | clones[problem_id]) & problems_available_for_user_copy
+                if len(next_part) > 1:
+                    family_of_clone_sets.append(next_part)
+                problems_available_for_user_copy -= next_part
+
+            for clone_set in family_of_clone_sets:
+                lp_clone_variable = LpVariable(
+                    'user_clones_{}_{}'.format(user_id, next(iter(clone_set))),
+                    lowBound=0
+                )
+                lp += (
+                    sum(
+                        lp_vars_user_problem[(user_id, problem_id)]
+                        for problem_id in clone_set
+                    )
+                    <=
+                    1 + lp_clone_variable
+                )
+                lp_objective += lp_clone_variable * penalty_for_giving_clones
+
+
+            # Introduce penalty for giving a user problems that he/she might have seen
             for problem_id in problems_available_for_user:
                 if problem_id in user_problems_seen:
                     lp_objective += (
@@ -446,15 +511,15 @@ def new_exposure():
 
             lp.setObjective(lp_objective)
 
-        # try:
-        lp.solve()
-        log_info = 'Problem status is “{}” with objective function value “{}”'.format(
-            LpStatus[lp.status],
-            lp.objective.value()
-        )
-        # except:
-        #     log_info = 'Failed to solve the linear program'
-        #     return jsonify(error='Failed to solve the linear program')
+        try:
+            lp.solve()
+            log_info = 'Problem status is “{}” with objective function value “{}”'.format(
+                LpStatus[lp.status],
+                lp.objective.value()
+            )
+        except:
+            log_info = 'Failed to solve the linear program'
+            return jsonify(error='Failed to solve the linear program')
 
         problem_sets = defaultdict(list)
         for user_id, problem_id in lp_vars_user_problem:
@@ -483,7 +548,7 @@ def new_exposure():
 
         db.session.commit()
         return redirect(url_for(
-            'grading.view_grading_table',
+            'exposures.view_exposure',
             exposure_string=str(exposure.id),
             course_id=course_id,
             group=None))

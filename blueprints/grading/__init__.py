@@ -5,7 +5,7 @@ from blueprints.models import \
     db, \
     User, \
     ExposureContent, \
-    Problem, \
+    ProblemSet, \
     GroupMembership, \
     ProblemSetContent, \
     Exposure, \
@@ -44,27 +44,32 @@ def api_grading():
 
 
     if json['action'] == 'load':
-        if not json.get('user_ids'):
-            return jsonify(error='User IDs not specified')
         if not json.get('exposure_ids'):
-            return jsonify(error='Exposure IDs not specified')
+            abort(400)
 
         exposure_ids = json.get('exposure_ids')
-        user_ids = json.get('user_ids')
-        db_data = db.session.query(
+        db_data_query = db.session.query(
             User.name_last,
             User.name_first,
             User.id,
             Exposure.timestamp,
             Exposure.id,
-            ExposureContent.problem_set_id
+            ProblemSet.id,
+            ProblemSet.is_adhoc
         ).filter(
-            User.id.in_(user_ids),
             Exposure.id.in_(exposure_ids),
             Exposure.course_id == course_id,
             ExposureContent.user_id == User.id,
-            ExposureContent.exposure_id == Exposure.id
-        ).all()
+            ExposureContent.exposure_id == Exposure.id,
+            ExposureContent.problem_set_id == ProblemSet.id
+        )
+
+        user_ids = json.get('user_ids')
+        if user_ids:
+            db_data_query = db_data_query.filter(User.id.in_(user_ids))
+
+        db_data = db_data_query.all()
+
         data_for_frontend = []
 
         for user_name_last, \
@@ -72,12 +77,14 @@ def api_grading():
             user_id, \
             exposure_timestamp, \
             exposure_id, \
-            problem_set_id \
+            problem_set_id, \
+            problem_set_is_adhoc \
                 in db_data:
             data_for_frontend.append(dict())
             data_for_frontend[-1]['user_id'] = user_id
             data_for_frontend[-1]['exposure_id'] = exposure_id
             data_for_frontend[-1]['problem_set_id'] = problem_set_id
+            data_for_frontend[-1]['problem_set_is_adhoc'] = problem_set_is_adhoc
             data_for_frontend[-1]['exposure_date'] = exposure_timestamp.isoformat()[:10]
             data_for_frontend[-1]['learner_name'] = '{} {}'.format(user_name_last, user_name_first)
             problem_ids = list(map(
@@ -188,20 +195,19 @@ def view_grading_table(exposure_string, course_id, group=None):
     if group is not None and not db.session.query(db.exists().where(Group.code == group)).scalar():
         return jsonify(error='Group not found')
 
+    user_query = db.session.query(User.id).filter(
+        ExposureContent.exposure_id.in_(exposure_ids),
+        ExposureContent.user_id == User.id
+    )
+
     if group is not None:
         group_id = Group.query.filter_by(code=group).first().id
+        user_query = user_query.filter(
+            GroupMembership.group_id == group_id,
+            GroupMembership.user_id == User.id
+        )
 
-        user_ids = list(map(
-            lambda x: x[0],
-            db.session.query(User.id).filter(
-                GroupMembership.group_id == group_id,
-                GroupMembership.user_id == User.id,
-                ExposureContent.exposure_id.in_(exposure_ids),
-                ExposureContent.user_id == User.id)
-            .all()))
-    else:
-        user_ids = list(map(lambda x: x[0], db.session.query(User.id).all()))
-
+    user_ids = list(map(lambda x: x[0], user_query.all()))
     problem_statuses = [{'icon': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
     return render_template(

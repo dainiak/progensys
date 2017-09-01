@@ -8,10 +8,28 @@
         a.problem-number:hover {
             text-decoration: none;
         }
+        div.technical-header {
+            font-weight: bold;
+            background-color: #999999;
+            text-align: center;
+        }
+        .latex-section {
+            width: 100%;
+            font-weight: bold;
+            text-align: center;
+            font-size: larger;
+        }
         @media print {
+            div.technical-header {
+                display: none;
+            }
             a.problem-number {
                 color: black;
                 text-decoration: none;
+            }
+
+            div.problem {
+                page-break-inside: avoid;
             }
         }
     </style>
@@ -62,5 +80,6 @@
 
 {% block body %}
     {% block navbar %}{% endblock navbar %}
+    <div class="technical-header">Печать набора задач #<a href="{{ url_for('problem_sets.view_problem_set', problem_set_id=problem_set_id) }}">{{ problem_set_id }}</a></div>
     <div class="container"></div>
 {% endblock body %}

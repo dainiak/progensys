@@ -1,14 +1,16 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for
 from blueprints.models import \
     db, \
     Role, \
     Problem, \
     Participant, \
     ProblemSetExtra, \
+    ProblemSet, \
     Course, \
     ProblemSetContent
 from text_tools import process_problem_statement, latex_to_html
 import flask_login
+from datetime import datetime
 
 problem_set_blueprint = Blueprint('problem_sets', __name__, template_folder='templates')
 
@@ -17,6 +19,16 @@ problem_set_blueprint = Blueprint('problem_sets', __name__, template_folder='tem
 @problem_set_blueprint.route('/problem-set-<int:problem_set_id>', methods=['GET'])
 def view_problem_set(problem_set_id):
     return render_template('view_problem_set.html', problem_set_id=problem_set_id)
+
+@problem_set_blueprint.route('/problem-set-new', methods=['GET'])
+def new_problem_set():
+    problem_set = ProblemSet()
+    problem_set.is_adhoc = False
+    problem_set.owner_id = flask_login.current_user.id
+    problem_set.timestamp_created = datetime.now()
+    db.session.add(problem_set)
+    db.session.commit()
+    return redirect(url_for('problem_sets.view_problem_set', problem_set_id=problem_set.id))
 
 
 @problem_set_blueprint.route('/problem-set-<int:problem_set_id>/print/', methods=['GET'])
@@ -137,6 +149,7 @@ def api():
             db.session.add(pse)
             db.session.commit()
             item['problem_set_extra_content'] = latex_to_html(pse.content)
+            item['problem_set_extra_id'] = pse.id
             return jsonify(item)
         else:
             abort(400)
