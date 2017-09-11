@@ -134,6 +134,7 @@ def api_user_management():
                 return jsonify(error="Email already exists")
             user.email = item['email']
 
+            db.session.add(user)
             db.session.commit()
             return jsonify({'id': user.id, 'username': user.username, 'name_first': user.name_first,
                             'name_last': user.name_last, 'name_middle': user.name_middle, 'email': user.email})

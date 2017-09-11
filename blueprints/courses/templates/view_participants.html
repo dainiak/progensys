@@ -74,6 +74,9 @@
                 $("#jsGrid").jsGrid("refresh");
             }
 
+            var trajectory_ids = [""].concat({{ trajectory_ids | safe }});
+            for(var i = 0; i < trajectory_ids.length; ++i)
+                trajectory_ids[i] = {'trajectory_id': trajectory_ids[i]}
 
             $("#jsGrid").jsGrid({
                 width: "100%",
@@ -149,7 +152,9 @@
                         title: "Траектория",
                         name: "trajectory_id",
                         type: "select",
-                        items: [""].concat({{ trajectory_ids | safe }})
+                        items: trajectory_ids,
+                        valueField: "trajectory_id",
+                        textField: "trajectory_id"
                     },
                     {
                         type: "control",
@@ -266,13 +271,15 @@
 {% block body %}
     <div class="container-fluid">
         <div class="card">
-            <div class="card-block">
+            <div class="card-body">
                 <h4 class="card-title">Управление участниками курса «{{ course_title }}»</h4>
-                Действия:
-                <div class="form-inline">
-                    <button class="btn btn-secondary" id="exposureSettingsModalOpen">создать
-                        выдачу
-                    </button>
+                <div class="card-text">
+                    Действия:
+                    <div class="form-inline">
+                        <button class="btn btn-secondary" id="exposureSettingsModalOpen">создать
+                            выдачу
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

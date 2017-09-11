@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Результаты{% endblock %}
+{% block title %}Доступные действия для курса «{{ course_title }}»{% endblock %}
 {% block head %}
     <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
     <link type="text/css" rel="stylesheet"
@@ -11,7 +11,7 @@
         $(function () {
             var fields = [
                 {
-                    title: "Действие",
+                    title: "Доступные действия для курса «{{ course_title }}»",
                     name: "title",
                     itemTemplate: function(value, item) {
                         return $("<a>").attr('href', item.url).text(value);
@@ -53,5 +53,7 @@
 {% endblock head %}
 
 {% block body %}
+    <div class="container-fluid">
     <div id="jsGrid"></div>
+    </div>
 {% endblock body %}

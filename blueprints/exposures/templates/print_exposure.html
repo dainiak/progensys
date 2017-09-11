@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block head %}
+    <style type="text/css">
+        .variant {
+            page-break-inside: avoid;
+        }
+        .statement {
+            font-family: "Verdana", Verdana, sans-serif;
+            font-size: small;
+        }
+        .variant .header {
+            border: 2px dashed dimgray;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        .variant .header .block {
+            white-space: nowrap;
+        }
+        h1 {
+            text-decoration: underline;
+            font-weight: bold;
+            font-size: small;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+    </style>
+    <style type="text/css" media="print">
+    .dontprint {
+        display: none;
+    }
+    </style>
+{% endblock head %}
+{% block body %}
+<h1>Выдача #{{ exposure_id }} по курсу #{{ course_id }}</h1>
+{% for exposure_item in exposure_content %}
+    {% if loop.index > 0 %}<hr>{% endif %}
+    <div class="variant">
+        <div class="header">
+            <span class="block">Выдача #{{ exposure_id }} от <strong>{{ exposure_date }}</strong>.</span>
+            <span class="block">Тренируется: <strong>{{ exposure_item.name_first }} {{ exposure_item.name_last }}</strong>.</span>
+            <span class="block">Результаты проверки:
+                \(\begin{matrix}
+                {% for p in exposure_item.problems %}{% if loop.index > 0 %}&{% endif %}{{ loop.index }}{% endfor %}\\
+                {% for i in range(exposure_item.problems|length) %}{% if loop.index > 0 %}&{% endif %}\square{% endfor %}
+                \end{matrix}\)
+            </span>
+        </div>
+    {% for problem in exposure_item.problems %}
+        <div class="statement">
+        \(\mathbf{ { {{ loop.index }} }_{( {{ problem.problem_id }} )}.}\)
+        {{ problem.problem_statement }}
+        </div>
+    {% endfor %}
+    </div>
+{% endfor %}
+
+<script type="text/javascript">
+    $(function(){
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+    })
+</script>
+{% endblock %}

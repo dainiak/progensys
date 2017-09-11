@@ -16,6 +16,8 @@ from blueprints.grading import grading_blueprint
 from blueprints.trajectory import trajectory_blueprint
 from blueprints.autocompletion import autocompletion_blueprint
 
+from blueprints.migration_tools import migration_tools_blueprint
+
 import flask_login
 
 # Security sensitive constants are imported from a file not being synced with github
@@ -41,6 +43,8 @@ app.register_blueprint(users_blueprint)
 app.register_blueprint(exposures_blueprint)
 app.register_blueprint(grading_blueprint)
 app.register_blueprint(trajectory_blueprint)
+
+app.register_blueprint(migration_tools_blueprint)
 
 app.secret_key = tpbeta_app_secret_key
 

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Авторизация{% endblock %}
 {% block body %}
+    <div class="container">
     {% if bad_login %}
     <div class="alert alert-danger" role="alert">Неверное имя пользователя и/или пароль</div>
     {% endif %}
@@ -14,17 +15,17 @@
     {% endif %}
 
     {% if not login_successful %}
-        <div class="container">
         <div class="card card-outline-secondary">
-            <div class="card-block">
-            <h4 class="card-title">Данные для авторизации:</h4>
-            <form action="/api/authorization" method="POST" class="form">
-                <input class="form-control" type="text" name="username" placeholder="имя пользователя">
-                <input class="form-control"  type="password" name="password" placeholder="пароль">
-                <input class="btn btn-default" type="submit" name="Авторизоваться" value="Авторизоваться">
-            </form>
+            <div class="card-body">
+                <h4 class="card-title">Данные для авторизации:</h4>
+                <form action="/api/authorization" method="POST" class="form">
+                    <input class="form-control" type="text" name="username" placeholder="имя пользователя">
+                    <input class="form-control"  type="password" name="password" placeholder="пароль">
+                    <input class="btn btn-default" type="submit" name="Авторизоваться" value="Авторизоваться">
+                </form>
+            </div>
         </div>
-        </div>
-        </div>
+
     {% endif %}
+    </div>
 {% endblock body %}

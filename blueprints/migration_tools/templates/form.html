@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/mode-javascript.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/theme-chrome.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var $textarea = $('#requestArea');
+        var editor = ace.edit($textarea[0]);
+        editor.$blockScrolling = Infinity;
+        editor.setOptions({
+            theme: 'ace/theme/chrome',
+            mode: 'ace/mode/javascript',
+            minLines: 3,
+            maxLines: Infinity,
+            wrap: true,
+            showGutter: true,
+            fadeFoldWidgets: false,
+            showPrintMargin: false
+        });
+
+        editor.commands.removeCommands(["gotoline", "find"]);
+
+        $('.btn-submit').on('click', function(){
+            $.ajax({
+                type: "POST",
+                url: "/migration_tools",
+                contentType: "application/json",
+                dataType: "text ",
+                data: editor.getValue()
+            }).done(function (response) {
+                $('#resultArea').text(response);
+            }).fail(function () {
+                $('#resultArea').text('При выполнении запроса произошла ошибка.');
+            });
+        });
+    });
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container-fluid">
+    <div class="card">
+    <div class="form-group card-body">
+        <label for="requestArea">Ввод в формате plain text:</label>
+        <textarea id="requestArea" class="form-control form-control-lg" name="request"></textarea>
+        <button type="button" class="btn btn-primary btn-submit">Отправить</button>
+    </div>
+    </div>
+    <div class="card">
+        <div class="card-body" id="resultArea">
+        </div>
+    </div>
+    </div>
+{% endblock body %}

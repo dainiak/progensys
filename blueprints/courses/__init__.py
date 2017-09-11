@@ -101,10 +101,12 @@ def view_course(course_id):
     ).scalar()
     if not role_code:
         abort(403)
+    course_title = Course.query.filter_by(id=course_id).first().title
 
     return render_template(
         'view_course.html',
-        course_id=course_id
+        course_id=course_id,
+        course_title=course_title
     )
 
 
@@ -327,6 +329,7 @@ def api_participants():
             db.session.add(user_course_trajectory)
 
         db.session.commit()
+        item['role_id'] = 'LEARNER'
         return jsonify(item)
 
     elif json['action'] == 'delete':

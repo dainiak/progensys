@@ -30,7 +30,7 @@ from pulp import LpProblem, LpVariable, LpAffineExpression, LpMinimize, LpStatus
 from collections import defaultdict
 from functools import reduce
 
-#from text_tools import latex_to_html
+from text_tools import process_problem_statement
 
 exposures_blueprint = Blueprint('exposures', __name__, template_folder='templates')
 
@@ -68,6 +68,77 @@ def view_exposure(course_id, exposure_string):
     return render_template(
         'view_exposure.html',
         exposure_id=exposure_id,
+        course_id=course_id
+    )
+
+
+@exposures_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/print/', methods=['GET'])
+@exposures_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/print', methods=['GET'])
+def print_exposure(course_id, exposure_string):
+    if not db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == flask_login.current_user.id,
+                Participant.course_id == course_id,
+                Participant.role_id == Role.id,
+                Role.code.in_(['ADMIN', 'INSTRUCTOR', 'GRADER'])
+            ).first():
+        abort(403)
+
+    if '-' in exposure_string:
+        exposures = Exposure.query.filter_by(course_id=course_id).all()
+        exposure_ids = list(map(
+            attrgetter('id'),
+            filter(lambda x: x.timestamp.isoformat()[:10] == exposure_string, exposures)
+        ))
+        if exposure_ids:
+            exposure_id = exposure_ids[0]
+        else:
+            abort(404)
+    elif exposure_string.isdecimal():
+        exposure_id = int(exposure_string)
+        if not Exposure.query.filter_by(course_id=course_id, id=exposure_id).first():
+            abort(404)
+    else:
+        abort(400)
+
+    exposure_date = str(db.session.query(Exposure.timestamp).filter(Exposure.id == exposure_id).scalar())[:10]
+    results = []
+    for firstname, lastname, problem_set_id in db.session.query(
+                User.name_first,
+                User.name_last,
+                ExposureContent.problem_set_id
+            ).filter(
+                ExposureContent.exposure_id == exposure_id,
+                ExposureContent.user_id == User.id
+            ).order_by(
+                ExposureContent.sort_key
+            ).all():
+
+        results.append({
+            'name_first': firstname,
+            'name_last': lastname,
+            'problems': []
+        })
+        for problem_id, problem_statement in db.session.query(
+                    Problem.id,
+                    Problem.statement
+                ).filter(
+                    Problem.id == ProblemSetContent.problem_id,
+                    ProblemSetContent.problem_set_id == problem_set_id
+                ).order_by(
+                    ProblemSetContent.sort_key
+                ).all():
+            results[-1]['problems'].append({
+                'problem_id': problem_id,
+                'problem_statement': process_problem_statement(problem_statement)
+            })
+
+    return render_template(
+        'print_exposure.html',
+        exposure_id=exposure_id,
+        exposure_content=results,
+        exposure_date=exposure_date,
         course_id=course_id
     )
 

@@ -209,7 +209,8 @@
                 },
                 onItemInserted: function(args) {
                     $("#jsGrid").jsGrid("sort", {field: "sort_key"});
-                }
+                },
+                noDataContent: "(Траектория пуста)"
             });
         })
         ;
@@ -217,6 +218,8 @@
 {% endblock head %}
 
 {% block body %}
-    <h2>Редактирование содержимого траектории «{{ trajectory_title }}»</h2>
+    <div class="container-fluid">
+    <h4>Редактирование содержимого траектории «{{ trajectory_title }}»</h4>
     <div id="jsGrid"></div>
+    </div>
 {% endblock body %}
