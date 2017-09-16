@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, abort, jsonify, url_for
 import flask_login
 from json import loads as load_json
+from json import dumps as dump_json
+
 
 from blueprints.models import \
     db, \
@@ -10,7 +12,8 @@ from blueprints.models import \
     TrajectoryContent, \
     Trajectory, \
     User, \
-    GroupMembership
+    GroupMembership, \
+    ParticipantExtraInfo
 
 migration_tools_blueprint = Blueprint('migration_tools', __name__, template_folder='templates')
 
@@ -49,7 +52,7 @@ def interface():
                 db.session.add(p)
 
             db.session.commit()
-            return 'Добавлено студентов произведено'
+            return 'Добавление студентов произведено'
 
         elif user_request == 'assign_groups':
             usernames = json_data.get('usernames')
@@ -65,5 +68,14 @@ def interface():
 
             db.session.commit()
             return 'Распределение по группам выполнено'
+
+        elif user_request == 'add_extra_participant_info':
+            course_id = json_data.get('course_id')
+            for item in json_data.get('data'):
+                user_id = User.query.filter_by(username=item['username']).first().id
+                pef = ParticipantExtraInfo(user_id, course_id, dump_json(item['extra_participant_info']))
+                db.session.add(pef)
+            db.session.commit()
+            return 'Данные внесены успешно'
 
         return 'Запрос не распознан'

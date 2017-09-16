@@ -4,7 +4,7 @@
         .variant {
             page-break-inside: avoid;
         }
-        .statement {
+        .problem-statement {
             font-family: "Verdana", Verdana, sans-serif;
             font-size: small;
         }
@@ -12,10 +12,41 @@
             border: 2px dashed dimgray;
             padding-left: 5px;
             padding-right: 5px;
+            margin-bottom: 0.5rem;
         }
         .variant .header .block {
             white-space: nowrap;
         }
+        .variant hr {
+            border-top: 1px dotted #8c8b8b;
+            margin-top: 0.3rem;
+            margin-bottom: 0.3rem;
+        }
+
+        hr.cut {
+            border-top: 1px dashed #8c8b8b;
+            display: block;
+            unicode-bidi: isolate;
+            margin-top: 0.7rem;
+            margin-bottom: 0.7rem;
+            /* overflow: hidden; */
+        }
+
+        hr.cut:after {
+            content: '\002702';
+            display: inline-block;
+            position: relative;
+            top: -15px;
+            left: 5px;
+            padding: 0 3px;
+            color: #8c8b8b;
+            font-size: 18px;
+        }
+
+        .controls label {
+            display: block;
+        }
+
         h1 {
             text-decoration: underline;
             font-weight: bold;
@@ -32,32 +63,55 @@
     </style>
 {% endblock head %}
 {% block body %}
-<h1>Выдача #{{ exposure_id }} по курсу #{{ course_id }}</h1>
+<div class="container-fluid controls dontprint">
+<h1 class="h1">Выдача #{{ exposure_id }} по курсу #{{ course_id }}</h1>
+    Отображать:
+    <label><input type="checkbox" checked id="btnToggleVariantHeaders"> Заголовок варианта</label>
+    <label><input type="checkbox" checked id="btnToggleLearnerName"> Имя обучающегося</label>
+    <label><input type="checkbox" checked id="btnToggleLearnerGroup"> Номер группы</label>
+    <label><input type="checkbox" checked id="btnToggleExposureInfo"> Номер и дата выдачи</label>
+    <label><input type="checkbox" checked id="btnToggleExposureDate"> Дата выдачи</label>
+    <label><input type="checkbox" checked id="btnToggleProblemSetInfo"> Номер набора задач</label>
+    <label><input type="checkbox" checked id="btnToggleGradingTable"> Таблица с результатами проверки</label>
+</div>
+
 {% for exposure_item in exposure_content %}
-    {% if loop.index > 0 %}<hr>{% endif %}
+    {% if loop.index > 1 %}<hr class="cut">{% endif %}
     <div class="variant">
         <div class="header">
-            <span class="block">Выдача #{{ exposure_id }} от <strong>{{ exposure_date }}</strong>.</span>
-            <span class="block">Тренируется: <strong>{{ exposure_item.name_first }} {{ exposure_item.name_last }}</strong>.</span>
-            <span class="block">Результаты проверки:
+            <span class="block learner-name"><i class="fa fa-graduation-cap"></i> <strong>{{ exposure_item.name_first }} {{ exposure_item.name_last }}</strong><span class="learner-group"> ({{ exposure_item.groups }})</span>.</span>
+            <span class="block exposure-info">Выдача #<strong>{{ exposure_id }}</strong><span class="exposure-date"> от <strong>{{ exposure_date }}</strong></span>.</span>
+            <span class="block problem-set-info">Набор задач #<strong>{{ exposure_item.problem_set_id }}</strong>{% if exposure_item.problem_set_is_adhoc %}<sup>a</sup>{% endif %}.</span>
+            <span class="block grading-table">Результаты проверки:
                 \(\begin{matrix}
-                {% for p in exposure_item.problems %}{% if loop.index > 0 %}&{% endif %}{{ loop.index }}{% endfor %}\\
-                {% for i in range(exposure_item.problems|length) %}{% if loop.index > 0 %}&{% endif %}\square{% endfor %}
+                {% for i in range(exposure_item.problem_count) %}{% if i > 0 %}&{% endif %}{{ i + 1 }}{% endfor %}\\
+                {% for i in range(exposure_item.problem_count) %}{% if i > 0 %}&{% endif %}\square{% endfor %}
                 \end{matrix}\)
             </span>
         </div>
-    {% for problem in exposure_item.problems %}
-        <div class="statement">
-        \(\mathbf{ { {{ loop.index }} }_{( {{ problem.problem_id }} )}.}\)
-        {{ problem.problem_statement }}
+    {% for content in exposure_item.problem_set_content %}
+        {% if loop.index > 1 %}<hr>{% endif %}
+        {% if content.extra_content %}
+        <div class="problem-set-extra">{{ content.extra_content | safe }}</div>
+        {% elif content.problem_id %}
+        <div class="problem-statement">
+        \(\mathbf{ { {{ content.problem_number }} }_{( {{ content.problem_id }} )}.}\)
+        {{ content.problem_statement | safe }}
         </div>
+        {% endif %}
     {% endfor %}
-    </div>
 {% endfor %}
-
+</div>
 <script type="text/javascript">
     $(function(){
         MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+        $('#btnToggleVariantHeaders').click(function(){$('.variant .header').toggle();});
+        $('#btnToggleLearnerName').click(function(){$('.learner-name').toggle();});
+        $('#btnToggleLearnerGroup').click(function(){$('.learner-group').toggle();});
+        $('#btnToggleExposureInfo').click(function(){$('.exposure-info').toggle();});
+        $('#btnToggleExposureDate').click(function(){$('.exposure-date').toggle();});
+        $('#btnToggleProblemSetInfo').click(function(){$('.problem-set-info').toggle();});
+        $('#btnToggleGradingTable').click(function(){$('.grading-table').toggle();});
     })
 </script>
 {% endblock %}

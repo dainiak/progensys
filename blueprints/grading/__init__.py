@@ -68,7 +68,7 @@ def api_grading():
         if user_ids:
             db_data_query = db_data_query.filter(User.id.in_(user_ids))
 
-        db_data = db_data_query.all()
+        db_data = db_data_query.order_by(ExposureContent.sort_key).all()
 
         data_for_frontend = []
 

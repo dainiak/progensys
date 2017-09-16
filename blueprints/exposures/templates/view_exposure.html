@@ -106,10 +106,74 @@
                     }, 50);
                 }
             });
+
+            $('#btnChangeExposureDate').click(function(){
+                var newDate = prompt("Введите дату в формате ГГГГ-ММ-ДД", "{{ exposure_date }}");
+                $.ajax({
+                    type: "POST",
+                    url: "/api/exposure",
+                    contentType: "application/json",
+                    dataType: "json",
+                    data: JSON.stringify({
+                        action: 'change_exposure_date',
+                        exposure_id: {{ exposure_id }},
+                        course_id: {{ course_id }},
+                        exposure_date: newDate
+                    })
+                }).done(function () {
+                    $.toaster({
+                        message : 'Изменения сохранены',
+                        priority : 'success'
+                    });
+                    $('#exposureDate').text(newDate);
+                }).fail(function () {
+                    $.toaster({
+                        message : 'Не удалось сохранить изменения',
+                        priority : 'danger'
+                    });
+                });
+            });
+
+            $('#btnDeleteExposure').click(function(){
+                if(confirm('Удаление выдачи приведёт к удалению всех результатов её проверки и всех ad-hoc наборов задач, участвовавших в выдаче и более не используемых. Подтверждаете удаление?')) {
+                    $.ajax({
+                        type: "POST",
+                        url: "/api/exposure",
+                        contentType: "application/json",
+                        dataType: "json",
+                        data: JSON.stringify({
+                            action: 'delete_exposure',
+                            exposure_id: {{ exposure_id }},
+                            course_id: {{ course_id }}
+                        })
+                    }).done(function () {
+                        $.toaster({
+                            message : 'Выдача удалена',
+                            priority : 'success'
+                        });
+                        $('#jsGrid').html('');
+                    }).fail(function () {
+                        $.toaster({
+                            message : 'Не удалось удалить выдачу',
+                            priority : 'danger'
+                        });
+                    });
+                }
+            });
         });
     </script>
 {% endblock head %}
 
 {% block body %}
-    <div id="jsGrid"></div>
+    <div class="container-fluid">
+    <h2 class="h2">Просмотр выдачи #{{ exposure_id }} от <span id="exposureDate">{{ exposure_date }}</span></h2>
+        <div class="card">
+            <div class="card-body">
+            <a class="btn btn-primary" target="_blank" href="{{ url_for('exposures.print_exposure', course_id=course_id, exposure_string=exposure_id) }}">Перейти в режим печати выдачи</a>
+            <button class="btn btn-secondary" id="btnChangeExposureDate">Изменить дату выдачи</button>
+            <button class="btn btn-secondary" id="btnDeleteExposure">Удалить выдачу</button>
+            </div>
+        </div>
+        <div id="jsGrid" class="card"></div>
+    </div>
 {% endblock body %}

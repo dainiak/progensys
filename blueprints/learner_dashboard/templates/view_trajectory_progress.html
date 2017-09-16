@@ -12,7 +12,6 @@
     <script>
         $(function () {
             var exposure_ids = {{ exposure_ids | safe }};
-            var user_ids = {{ user_ids | safe }};
 
             function getSingleProblemFields(){
                 var list = [];
@@ -98,7 +97,7 @@
             var problemFields = getSingleProblemFields();
             var fields = [
                         {
-                            title: "ID теста",
+                            title: "ID выдачи",
                             name: "exposure_id",
                             itemTemplate: function(value) {
                                 return $("<span>").text(value);
@@ -108,14 +107,6 @@
                         {
                             title: "Дата",
                             name: "exposure_date",
-                            itemTemplate: function(value) {
-                                return $("<span>").text(value);
-                            },
-                            filtering: false
-                        },
-                        {
-                            title: "Студент",
-                            name: "learner_name",
                             itemTemplate: function(value) {
                                 return $("<span>").text(value);
                             },
@@ -139,9 +130,9 @@
                 height: "auto",
                 inserting: false,
                 heading: true,
-                editing: true,
+                editing: false,
                 filtering: false,
-                sorting: true,
+                sorting: false,
                 paging: false,
                 autoload: true,
                 fields: fields,
@@ -157,38 +148,10 @@
                                 filter: filter,
                                 course_id: {{ course_id }},
                                 exposure_ids: exposure_ids,
-                                user_ids: user_ids
+                                user_ids: [{{ user_id }}]
                             })
-                        });
-                    },
-                    updateItem: function (item) {
-                        return $.ajax({
-                            type: "POST",
-                            url: "/api/grading",
-                            contentType: "application/json",
-                            dataType: "json",
-                            data: JSON.stringify({
-                                action: 'update',
-                                item: item,
-                                course_id: {{ course_id }}
-                            })
-                        }).done(function () {
-                            $.toaster({
-                                message : 'Изменения сохранены',
-                                priority : 'success'
-                            });
-                        }).fail(function () {
-                            $.toaster({
-                                message : 'Не удалось сохранить изменения',
-                                priority : 'danger'
-                            });
                         });
                     }
-                },
-                onItemEditing: function(args) {
-                    setTimeout(function(){
-                        $('.jsgrid-edit-row select').first().focus();
-                    }, 50);
                 }
             });
         });
@@ -197,7 +160,7 @@
 
 {% block body %}
     <div class="container-fluid">
-    <h2 class="h2">Редактирование результатов проверки выдач {{ exposure_ids | safe }}</h2>
+    <h2 class="h2">Просмотр результатов проверки выдач выдач {{ exposure_ids | safe }}</h2>
     <div id="jsGrid" class="card"></div>
     </div>
 {% endblock body %}

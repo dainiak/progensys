@@ -14,6 +14,8 @@ class User(db.Model, LoginUserMixin):
     email = db.Column(db.Unicode(80))
     current_course_id = 0
 
+    course_participations = db.relationship("Participant", cascade="all, delete")
+
     def __repr__(self):
         return '<User {0}>'.format(self.username)
 
@@ -35,8 +37,8 @@ class Role(db.Model):
 
 
 class Participant(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
 
     def __init__(self, user_id, course_id, role_id):
@@ -46,8 +48,8 @@ class Participant(db.Model):
 
 
 class ParticipantExtraInfo(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
     json = db.Column(db.UnicodeText)
 
     def __init__(self, user_id, course_id, json):
@@ -61,13 +63,13 @@ class Group(db.Model):
     code = db.Column(db.String(100))
     title = db.Column(db.UnicodeText)
     suggested_role = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=True)
-    suggested_course = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
+    suggested_course = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=True)
 
 
 class GroupMembership(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), primary_key=True)
-    suggested_course = db.Column(db.Integer, db.ForeignKey('course.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id', ondelete='CASCADE'), primary_key=True)
+    suggested_course = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
 
     def __init__(self, user_id, group_id):
         self.user_id = user_id
@@ -89,7 +91,7 @@ class ProblemRelation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     from_id = db.Column(db.Integer, db.ForeignKey('problem.id'), nullable=False)
     to_id = db.Column(db.Integer, db.ForeignKey('problem.id'), nullable=False)
-    type_id = db.Column(db.Integer, db.ForeignKey('problem_relation_type.id'), nullable=False)
+    type_id = db.Column(db.Integer, db.ForeignKey('problem_relation_type.id', ondelete='CASCADE'), nullable=False)
     weight = db.Column(db.Float)
 
     def __init__(self, from_id, to_id, relation_type_id, weight=1.0):
@@ -114,7 +116,7 @@ class Topic(db.Model):
 
 class TopicLevelAssignment(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), primary_key=True)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id', ondelete='CASCADE'), primary_key=True)
     level = db.Column(db.Integer, nullable=False)
 
     def __init__(self, course_id, topic_id, level):
@@ -124,8 +126,8 @@ class TopicLevelAssignment(db.Model):
 
 
 class ProblemTopicAssignment(db.Model):
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), primary_key=True)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), primary_key=True)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id', ondelete='CASCADE'), primary_key=True)
     weight = db.Column(db.Float)
 
     def __init__(self, problem_id, topic_id, weight=1.0):
@@ -141,8 +143,8 @@ class Concept(db.Model):
 
 
 class ProblemConceptAssignment(db.Model):
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), primary_key=True)
-    concept_id = db.Column(db.Integer, db.ForeignKey('concept.id'), primary_key=True)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), primary_key=True)
+    concept_id = db.Column(db.Integer, db.ForeignKey('concept.id', ondelete='CASCADE'), primary_key=True)
     weight = db.Column(db.Float)
 
     def __init__(self, problem_id, concept_id, weight=1):
@@ -155,15 +157,15 @@ class ProblemSet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_adhoc = db.Column(db.Boolean)
     timestamp_created = db.Column(db.DateTime)
     timestamp_last_modified = db.Column(db.DateTime)
 
 
 class ProblemSetContent(db.Model):
-    problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id'), primary_key=True)
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), primary_key=True)
+    problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id', ondelete='CASCADE'), primary_key=True)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), primary_key=True)
     sort_key = db.Column(db.Integer)
 
     def __init__(self, problem_set_id, problem_id, sort_key=0):
@@ -174,7 +176,7 @@ class ProblemSetContent(db.Model):
 
 class ProblemSetExtra(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id'))
+    problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id', ondelete='CASCADE'))
     content = db.Column(db.UnicodeText)
     sort_key = db.Column(db.Integer)
 
@@ -184,12 +186,15 @@ class Exposure(db.Model):
     timestamp = db.Column(db.DateTime)
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=False)
+    is_autogenerated = db.Column(db.Boolean)
+
+    exposure_content = db.relationship('ExposureContent', cascade='all, delete')
 
 
 class ExposureContent(db.Model):
-    exposure_id = db.Column(db.Integer, db.ForeignKey('exposure.id'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    exposure_id = db.Column(db.Integer, db.ForeignKey('exposure.id', ondelete='CASCADE'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id'), primary_key=True)
     sort_key = db.Column(db.Integer)
 
@@ -202,8 +207,8 @@ class ExposureContent(db.Model):
 
 class ExposureGrading(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    exposure_id = db.Column(db.Integer, db.ForeignKey('exposure.id'), nullable=False)
-    grader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exposure_id = db.Column(db.Integer, db.ForeignKey('exposure.id', ondelete='CASCADE'), nullable=False)
+    grader_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     timestamp = db.Column(db.DateTime)
     comment = db.Column(db.UnicodeText)
     feedback = db.Column(db.UnicodeText)
@@ -214,11 +219,11 @@ class ExposureGrading(db.Model):
 
 
 class ExposureGradingResult(db.Model):
-    exposure_grading_id = db.Column(db.Integer, db.ForeignKey('exposure_grading.id'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    exposure_grading_id = db.Column(db.Integer, db.ForeignKey('exposure_grading.id', ondelete='CASCADE'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     problem_set_id = db.Column(db.Integer, db.ForeignKey('problem_set.id'), primary_key=True)
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), primary_key=True)
-    problem_status_id = db.Column(db.Integer, db.ForeignKey('problem_status_info.id'), nullable=False)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), primary_key=True)
+    problem_status_id = db.Column(db.Integer, db.ForeignKey('problem_status_info.id', ondelete='CASCADE'), nullable=False)
     comment = db.Column(db.UnicodeText)
     feedback = db.Column(db.UnicodeText)
 
@@ -234,13 +239,13 @@ class Trajectory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.UnicodeText)
     comment = db.Column(db.UnicodeText)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'))
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'))
 
 
 class TrajectoryContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    trajectory_id = db.Column(db.Integer, db.ForeignKey('trajectory.id'), nullable=False)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
+    trajectory_id = db.Column(db.Integer, db.ForeignKey('trajectory.id', ondelete='CASCADE'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id', ondelete='CASCADE'), nullable=False)
     sort_key = db.Column(db.Integer)
 
     def __init__(self, trajectory_id, topic_id, sort_key=None):
@@ -251,9 +256,9 @@ class TrajectoryContent(db.Model):
 
 
 class UserCourseTrajectory(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), primary_key=True)
-    trajectory_id = db.Column(db.Integer, db.ForeignKey('trajectory.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
+    trajectory_id = db.Column(db.Integer, db.ForeignKey('trajectory.id', ondelete='CASCADE'))
 
     def __init__(self, user_id, course_id):
         self.user_id = user_id
@@ -261,9 +266,9 @@ class UserCourseTrajectory(db.Model):
 
 
 class ProblemStatus(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), primary_key=True)
-    status_id = db.Column(db.Integer, db.ForeignKey('problem_status_info.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), primary_key=True)
+    status_id = db.Column(db.Integer, db.ForeignKey('problem_status_info.id', ondelete='CASCADE'), nullable=False)
     timestamp_last_changed = db.Column(db.DateTime)
 
     def __init__(self, user_id, problem_id, status_id):
@@ -296,22 +301,22 @@ class ProblemSnapshot(db.Model):
 
 class ProblemComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'), nullable=False)
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'), nullable=False)
     datetime = db.Column(db.DateTime, nullable=False)
     content = db.Column(db.UnicodeText)
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     in_reply_to = db.Column(db.Integer, db.ForeignKey('problem_comment.id'))
 
 
 class History(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     datetime = db.Column(db.DateTime, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    problem_id = db.Column(db.Integer, db.ForeignKey('problem.id', ondelete='CASCADE'))
     event = db.Column(db.Text)
     comment = db.Column(db.UnicodeText)
 
 
 class SystemAdministrator(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     extra_info = db.Column(db.Text)

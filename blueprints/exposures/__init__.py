@@ -20,7 +20,11 @@ from blueprints.models import \
     ProblemTopicAssignment, \
     ProblemRelation, \
     ProblemRelationType, \
-    ProblemStatus
+    ProblemStatus, \
+    GroupMembership, \
+    Group, \
+    ProblemSetExtra
+
 
 from datetime import datetime
 from json import dumps as to_json_string
@@ -30,7 +34,7 @@ from pulp import LpProblem, LpVariable, LpAffineExpression, LpMinimize, LpStatus
 from collections import defaultdict
 from functools import reduce
 
-from text_tools import process_problem_statement
+from text_tools import process_problem_statement, latex_to_html
 
 exposures_blueprint = Blueprint('exposures', __name__, template_folder='templates')
 
@@ -60,15 +64,18 @@ def view_exposure(course_id, exposure_string):
             abort(404)
     elif exposure_string.isdecimal():
         exposure_id = int(exposure_string)
-        if not Exposure.query.filter_by(course_id=course_id, id=exposure_id).first():
-            abort(404)
     else:
         abort(400)
+
+    exposure = Exposure.query.filter_by(course_id=course_id, id=exposure_id).first()
+    if not exposure:
+        abort(404)
 
     return render_template(
         'view_exposure.html',
         exposure_id=exposure_id,
-        course_id=course_id
+        course_id=course_id,
+        exposure_date=exposure.timestamp.strftime('%Y-%m-%d')
     )
 
 
@@ -104,35 +111,66 @@ def print_exposure(course_id, exposure_string):
 
     exposure_date = str(db.session.query(Exposure.timestamp).filter(Exposure.id == exposure_id).scalar())[:10]
     results = []
-    for firstname, lastname, problem_set_id in db.session.query(
+    for firstname, lastname, user_id, problem_set_id, problem_set_is_adhoc in db.session.query(
                 User.name_first,
                 User.name_last,
-                ExposureContent.problem_set_id
+                User.id,
+                ProblemSet.id,
+                ProblemSet.is_adhoc
             ).filter(
                 ExposureContent.exposure_id == exposure_id,
-                ExposureContent.user_id == User.id
+                ExposureContent.user_id == User.id,
+                ProblemSet.id == ExposureContent.problem_set_id
             ).order_by(
                 ExposureContent.sort_key
             ).all():
 
+        groups_string = ", ".join(
+            x[0] for x in db.session.query(Group.code).filter(
+                    Group.id == GroupMembership.group_id,
+                    GroupMembership.user_id == user_id
+                ).all()
+        )
         results.append({
             'name_first': firstname,
             'name_last': lastname,
-            'problems': []
+            'groups': groups_string,
+            'problem_set_id': problem_set_id,
+            'problem_set_is_adhoc': problem_set_is_adhoc,
+            'problem_set_content': []
         })
-        for problem_id, problem_statement in db.session.query(
+        for problem_id, problem_statement, sort_key in db.session.query(
                     Problem.id,
-                    Problem.statement
+                    Problem.statement,
+                    ProblemSetContent.sort_key
                 ).filter(
                     Problem.id == ProblemSetContent.problem_id,
                     ProblemSetContent.problem_set_id == problem_set_id
-                ).order_by(
-                    ProblemSetContent.sort_key
                 ).all():
-            results[-1]['problems'].append({
+            results[-1]['problem_set_content'].append({
+                'sort_key': sort_key,
                 'problem_id': problem_id,
                 'problem_statement': process_problem_statement(problem_statement)
             })
+        for sort_key, extra_content in db.session.query(
+                    ProblemSetExtra.sort_key,
+                    ProblemSetExtra.content
+                ).filter(
+                        ProblemSetExtra.problem_set_id == problem_set_id
+                ).all():
+            results[-1]['problem_set_content'].append({
+                'sort_key': sort_key,
+                'extra_content': latex_to_html(extra_content)
+            })
+        results[-1]['problem_set_content'].sort(key=lambda x: x['sort_key'])
+        problem_count = 0
+        for item in results[-1]['problem_set_content']:
+            if item.get('problem_id'):
+                problem_count += 1
+                item['problem_number'] = problem_count
+        results[-1]['problem_count'] = problem_count
+
+    results.sort(key=lambda x: x['groups'] + "---" + x['name_last'])
 
     return render_template(
         'print_exposure.html',
@@ -165,7 +203,28 @@ def api_exposure():
             ).first():
         abort(403)
 
-    if json['action'] == 'load':
+    if json['action'] == 'change_exposure_date':
+        if not json.get('exposure_id') or not json.get('exposure_date'):
+            abort(400)
+        exposure_id = json.get('exposure_id')
+        exposure = Exposure.query.filter_by(id=exposure_id).first()
+        exposure.timestamp = datetime.strptime(json.get('exposure_date'), '%Y-%m-%d')
+        db.session.commit()
+        return jsonify(result='Success')
+
+    if json['action'] == 'delete_exposure':
+        if not json.get('exposure_id') or not json.get('course_id'):
+            abort(400)
+        exposure_id = json.get('exposure_id')
+        course_id = json.get('course_id')
+        exposure = Exposure.query.filter_by(id=exposure_id, course_id=course_id).first()
+        if not exposure:
+            abort(400)
+        db.session.delete(exposure)
+        db.session.commit()
+        return jsonify(result='Success')
+
+    elif json['action'] == 'load':
         if not json.get('exposure_id'):
             abort(400)
 
@@ -348,6 +407,21 @@ def new_exposure():
     exposure_type = request.form.get('exposure_type', 'auto')
     if exposure_type == 'manual':
         problem_set_id = int(request.form.get('problem_set_id', 0))
+        exposure = Exposure()
+        exposure.course_id = course_id
+        exposure.title = exposure_title
+        exposure.timestamp = datetime.strptime(exposure_timestamp, '%Y-%m-%dT%H:%M')
+        db.session.add(exposure)
+        db.session.flush()
+        for user_id in user_ids:
+            db.session.add(ExposureContent(exposure.id, user_id, problem_set_id))
+
+        db.session.commit()
+        return redirect(url_for(
+            'exposures.view_exposure',
+            exposure_string=str(exposure.id),
+            course_id=course_id,
+            group=None))
 
     if exposure_type == 'auto':
         user_trajectories = db.session.query(User.id, Trajectory.id).filter(
@@ -386,11 +460,6 @@ def new_exposure():
                 ).all():
             problems_by_topic[pta.topic_id].add(pta.problem_id)
             problem_ids.add(pta.problem_id)
-
-        problems = {
-            p.id: p
-            for p in Problem.query.filter(Problem.id.in_(problem_ids)).all()
-        }
 
         clones = defaultdict(set)
         for p1, p2 in db.session.query(
@@ -604,6 +673,10 @@ def new_exposure():
         db.session.add(exposure)
         db.session.flush()
 
+        exposure_preamble = request.form.get('exposure_preamble')
+        if exposure_preamble:
+            exposure_preamble.strip()
+
         for user_id in problem_sets:
             problem_set = ProblemSet()
             problem_set.is_adhoc = True
@@ -614,8 +687,15 @@ def new_exposure():
             db.session.add(problem_set)
             db.session.flush()
             db.session.add(ExposureContent(exposure.id, user_id, problem_set.id))
-            for problem_id in problem_sets[user_id]:
-                db.session.add(ProblemSetContent(problem_set.id, problem_id))
+            if exposure_preamble:
+                pse = ProblemSetExtra()
+                pse.content = exposure_preamble
+                pse.sort_key = 1
+                pse.problem_set_id = problem_set.id
+                db.session.add(pse)
+
+            for sort_key, problem_id in enumerate(problem_sets[user_id]):
+                db.session.add(ProblemSetContent(problem_set.id, problem_id, sort_key + 10))
 
         db.session.commit()
         return redirect(url_for(

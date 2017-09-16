@@ -125,14 +125,14 @@ def api():
             abort(400)
         if item.get('problem_id'):
             problem_id = item['problem_id']
-            if (db.session.query(Problem.id).filter(Problem.id == problem_id).first()
-                    and not db.session.query(ProblemSetContent.problem_id).filter(
+            problem = Problem.query.filter_by(id=problem_id).first()
+
+            if (problem and not db.session.query(ProblemSetContent.problem_id).filter(
                         ProblemSetContent.problem_id == problem_id,
-                        ProblemSetContent.problem_set_id
+                        ProblemSetContent.problem_set_id == problem_set_id
                     ).first()):
                 db.session.add(ProblemSetContent(problem_set_id, problem_id, item.get('sort_key', 0)))
                 db.session.commit()
-                problem = Problem.query.filter_by(id=problem_id).first()
                 return jsonify({
                     'sort_key': item.get('sort_key', 0),
                     'problem_id': problem.id,
