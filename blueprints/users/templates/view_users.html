@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Список пользователей{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script src="/static/js/jquery.toaster.js"></script>
+
+    <script>
+        $(function () {
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                inserting: true,
+                heading: true,
+                editing: true,
+                filtering: true,
+                sorting: true,
+                paging: false,
+                autoload: true,
+                deleteConfirm: "Удаление пользователя приведёт к удалению всей истории его решения задач. Подтверждаете удаление?",
+                fields: [
+                    {
+                        title: "ID",
+                        name: "id",
+                        type: "number",
+                        readOnly: true,
+                        width: '20'
+                    },
+                    {
+                        title: "Username",
+                        name: "username",
+                        type: "text",
+                        validate: {
+                            validator: "pattern",
+                            param: "(\\w|\\d|[ йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮЁ_-]){0,50}"
+                        }
+                    },
+                    {
+                        title: "E-mail",
+                        name: "email",
+                        type: "text",
+                        validate: [
+                            "required",
+                            function(value) {
+                                var re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+                                return re.test(value);
+                            }
+                        ]
+                    },
+                    {
+                        title: "Фамилия",
+                        name: "name_last",
+                        type: "text"
+                    },
+                    {
+                        title: "Имя",
+                        name: "name_first",
+                        type: "text"
+                    },
+                    {
+                        title: "Отчество",
+                        name: "name_middle",
+                        type: "text"
+                    },
+                    {
+                        type: "control",
+                        modeSwitchButton: false,
+                        editButton: true
+                    }
+                ],
+
+                controller: {
+                    loadData: function (filter) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/user",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({action: 'load', filter: filter})
+                        });
+                    },
+                    insertItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/user",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({action: 'insert', item: item})
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    updateItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/user",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({action: 'update', item: item})
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    deleteItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/user",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({action: 'delete', item: item})
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <h1>Управление пользователями системы</h1>
+    <div id="jsGrid"></div>
+{% endblock body %}
