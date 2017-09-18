@@ -7,9 +7,7 @@ from blueprints.models import \
     ProblemTopicAssignment, \
     Topic, \
     Course, \
-    ExposureContent,\
     ExposureGrading,\
-    ProblemSetContent, \
     Exposure,\
     ExposureGradingResult
 from text_tools import process_problem_statement
@@ -24,12 +22,12 @@ problems_blueprint = Blueprint('problems', __name__, template_folder='templates'
 @problems_blueprint.route('/problem-<int:problem_id>/', methods=['GET'])
 @problems_blueprint.route('/problem-<int:problem_id>', methods=['GET'])
 def view_problems(problem_id=None):
-    role_code = db.session.query(
+    (role_code,) = db.session.query(
         Role.code
     ).filter(
         Participant.user_id == flask_login.current_user.id,
         Role.id == Participant.role_id
-    ).scalar()
+    ).first()
 
     if role_code not in ['INSTRUCTOR', 'ADMIN']:
         abort(403)
