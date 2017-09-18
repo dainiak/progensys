@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}{% if problem_id %}Задача {{ problem_id }}{% else %}Задачи{% endif %}{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/mode-latex.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/theme-chrome.js"></script>
+
+    <script src="/static/js/jquery.toaster.js"></script>
+
+    <script>
+        $(function () {
+            var currentItem = null;
+            var fields = [
+                {
+                    title: "ID задачи",
+                    name: "problem_id",
+                    type: "number",
+                    width: 5
+                },
+                {
+                    title: "ID пользователя",
+                    name: "user_id",
+                    type: "number"
+                },
+                {
+                    title: "Имя пользователя",
+                    name: "user_name",
+                    type: "text"
+                },
+                {
+                    title: "Статус",
+                    name: "review_status",
+                    type: "text"
+                }
+            ];
+
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                heading: true,
+                filtering: true,
+                autosearch: true,
+                sorting: true,
+                inserting: false,
+                editing: false,
+                fields: fields,
+                data: {{ review_requests | safe }},
+                rowClick: function (args) {
+                    currentItem = args.item;
+                    $('a.goto-sharelatex')[0].href = 'https://www.sharelatex.com/project/' + currentItem.sharelatex_project_id;
+                    $('#takeActionModal').modal('show');
+                    return false;
+                }
+            });
+
+            var $textarea = $('#commentArea');
+            var editor = ace.edit($textarea[0]);
+            editor.$blockScrolling = Infinity;
+            editor.setOptions({
+                theme: 'ace/theme/chrome',
+                mode: 'ace/mode/latex',
+                minLines: 3,
+                maxLines: Infinity,
+                wrap: true,
+                showGutter: true,
+                fadeFoldWidgets: false,
+                showPrintMargin: false
+            });
+
+            editor.commands.removeCommands(["gotoline", "find"]);
+
+            function sendCommand(action) {
+                $.ajax({
+                    type: "POST",
+                    url: "{{ url_for('solution_reviews.view_solution_review_requests', course_id=course_id) }}",
+                    contentType: "application/json",
+                    dataType: "json",
+                    data: JSON.stringify({
+                        action: action,
+                        user_id: currentItem.user_id,
+                        problem_id: currentItem.problem_id,
+                        course_id: {{ course_id }},
+                        comment: editor.getValue()
+                    })
+                }).done(function (response) {
+                    $.toaster({
+                        message : response.result.toString(),
+                        priority : 'success'
+                    });
+                }).fail(function () {
+                    $.toaster({
+                        message : 'Не удалось сохранить изменения',
+                        priority : 'danger'
+                    });
+                });
+            }
+
+            $('#takeActionModal button.close').click(function(){
+                $('#takeActionModal').modal('hide');
+            });
+            $('#takeActionModal button.take-for-review').click(function(){
+                $('#takeActionModal').modal('hide');
+                sendCommand('take_for_review');
+            });
+            $('#takeActionModal button.send-for-revision').click(function(){
+                $('#takeActionModal').modal('hide');
+                sendCommand('send_for_revision');
+            });
+            $('#takeActionModal button.accept-solution').click(function(){
+                $('#takeActionModal').modal('hide');
+                sendCommand('accept_solution');
+            });
+
+        });
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <div class="container-fluid"><div id="jsGrid" class="card"></div></div>
+    <div class="modal fade" id="takeActionModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Доступные действия</h5>
+                    <button type="button" class="close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="commentArea">Комментарий обучающемуся:</label>
+                        <textarea id="commentArea" class="form-control form-control-lg"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a class="btn btn-secondary goto-sharelatex" target="_blank">Перейти в ShareLaTeX</a>
+                    <button type="button" class="btn btn-secondary take-for-review">Взять на проверку</button>
+                    <button type="button" class="btn btn-secondary send-for-revision">Отослать на переделку</button>
+                    <button type="button" class="btn btn-secondary accept-solution">Зачесть решение</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock body %}

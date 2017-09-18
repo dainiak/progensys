@@ -6,7 +6,12 @@ from blueprints.models import \
     Participant, \
     ProblemTopicAssignment, \
     Topic, \
-    Course
+    Course, \
+    ExposureContent,\
+    ExposureGrading,\
+    ProblemSetContent, \
+    Exposure,\
+    ExposureGradingResult
 from text_tools import process_problem_statement
 import flask_login
 
@@ -19,7 +24,48 @@ problems_blueprint = Blueprint('problems', __name__, template_folder='templates'
 @problems_blueprint.route('/problem-<int:problem_id>/', methods=['GET'])
 @problems_blueprint.route('/problem-<int:problem_id>', methods=['GET'])
 def view_problems(problem_id=None):
+    role_code = db.session.query(
+        Role.code
+    ).filter(
+        Participant.user_id == flask_login.current_user.id,
+        Role.id == Participant.role_id
+    ).scalar()
+
+    if role_code not in ['INSTRUCTOR', 'ADMIN']:
+        abort(403)
     return render_template('view_problems.html', problem_id=problem_id)
+
+@problems_blueprint.route('/course-<int:course_id>/problem-<int:problem_id>/print', methods=['GET'])
+def print_problem(course_id, problem_id):
+    user_id = flask_login.current_user.id
+    role_code = db.session.query(
+        Role.code
+    ).filter(
+        Participant.user_id == user_id,
+        Participant.course_id == course_id,
+        Role.id == Participant.role_id
+    ).scalar()
+    problem = None
+    if role_code == 'LEARNER':
+        problem = Problem.query.filter(
+            Problem.id == problem_id,
+            ExposureGradingResult.user_id == user_id,
+            ExposureGradingResult.problem_id == problem_id,
+            ExposureGradingResult.exposure_grading_id == ExposureGrading.id,
+            ExposureGrading.exposure_id == Exposure.id,
+            Exposure.course_id == course_id
+        ).first()
+    elif role_code in ['ADMIN', 'GRADER', 'INSTRUCTOR']:
+        problem = Problem.query.filter(Problem.id == problem_id).first()
+
+    if not problem:
+        abort(404)
+
+    return render_template(
+        'print_problem.html',
+        problem_id=problem_id,
+        problem_statement=process_problem_statement(problem.statement)
+    )
 
 
 @problems_blueprint.route('/api/problems', methods=['POST'])

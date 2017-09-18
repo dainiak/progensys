@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header"><h3 class="h3">Задача #{{ problem_id }}</h3></div>
+        <div class="card-body">{{ problem_statement | safe }}</div>
+    </div>
+</div>
+<script type="text/javascript">
+    $(function(){
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+    })
+</script>
+{% endblock %}

@@ -194,8 +194,8 @@ def api_user_management():
             letters = 'qwertyuiopasdfghjklzxcvbnm1029384756'
             new_password = ''.join(letters[int(random.random() * len(letters))] for _ in range(8))
 
-            msg = Message(subject='Временный пароль к информационной системе по курсу ДС',
-                          body='''Ваше имя пользователя для входа в систему: {0}\nВаш пароль для входа: {1}'''.format(
+            msg = Message(subject='Временный пароль к информационной системе',
+                          body='''Ваше имя пользователя для входа в систему progensys.dainiak.com: {}\nВаш пароль для входа: {}'''.format(
                               user.username, new_password),
                           recipients=[user.email])
             current_app.config['MAILER'].send(msg)

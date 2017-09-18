@@ -14,7 +14,9 @@ from blueprints.models import \
     Group, \
     ExposureGrading, \
     ExposureGradingResult, \
-    ProblemStatusInfo
+    ProblemStatusInfo, \
+    ProblemStatus, \
+    History
 
 from operator import attrgetter
 from datetime import datetime
@@ -36,7 +38,7 @@ def api_grading():
                 Participant
             ).filter(
                 Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == Exposure.course_id,
+                Participant.course_id == course_id,
                 Participant.role_id == Role.id,
                 Role.code.in_(['ADMIN', 'INSTRUCTOR'])
             ).first():
@@ -157,6 +159,35 @@ def api_grading():
                             problem_status_id
                         )
                         db.session.add(grading_result)
+
+                    need_to_update_problem_status = True
+                    if ProblemStatusInfo.query.filter_by(id=problem_status_id).first().code \
+                       == 'SOLUTION_NEEDS_REVISION':
+                        if not History.query.filter_by(
+                                problem_id=problem_id,
+                                user_id=user_id,
+                                event='SENT_FOR_REVISION_DURING_EXPOSURE_GRADING').first():
+                            h = History()
+                            h.problem_id = problem_id
+                            h.user_id = user_id
+                            h.datetime = datetime.now()
+                            h.event = 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING'
+                            db.session.add(h)
+                        elif History.query.filter_by(
+                                problem_id=problem_id,
+                                user_id=user_id,
+                                event='SOLUTION_ACCEPTED').first():
+                            need_to_update_problem_status = False
+
+                    if need_to_update_problem_status:
+                        ps = ProblemStatus.query.filter_by(user_id=user_id, problem_id=problem_id).first()
+                        if ps:
+                            ps.status_id = problem_status_id
+                            ps.reference_exposure_id = exposure_id
+                        else:
+                            ps = ProblemStatus(user_id, problem_id, problem_status_id)
+                            ps.reference_exposure_id = exposure_id
+                            db.session.add(ps)
                 else:
                     item['p{}'.format(problem_no)] = 0
 

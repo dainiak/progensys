@@ -14,6 +14,9 @@ from blueprints.users import users_blueprint
 from blueprints.exposures import exposures_blueprint
 from blueprints.grading import grading_blueprint
 from blueprints.trajectory import trajectory_blueprint
+from blueprints.learner_dashboard import learner_dashboard_blueprint
+from blueprints.solution_reviews import solution_reviews_blueprint
+
 from blueprints.autocompletion import autocompletion_blueprint
 
 from blueprints.migration_tools import migration_tools_blueprint
@@ -43,6 +46,8 @@ app.register_blueprint(users_blueprint)
 app.register_blueprint(exposures_blueprint)
 app.register_blueprint(grading_blueprint)
 app.register_blueprint(trajectory_blueprint)
+app.register_blueprint(learner_dashboard_blueprint)
+app.register_blueprint(solution_reviews_blueprint)
 
 app.register_blueprint(migration_tools_blueprint)
 
@@ -90,12 +95,12 @@ def request_loader(req):
 
 
 def notify_user(user_id, subject, body):
-    user_data = User.query.filter_by(id=user_id).first()
-    if not user_data.email:
+    user = User.query.filter_by(id=user_id).first()
+    if not user.email:
         return
-    msg = Message(subject='Курс ДС: {}'.format(subject),
-                  body='Здравствуйте, {}!\n{}'.format(user_data.firstname, body),
-                  recipients=[user_data.email])
+    msg = Message(subject='Курс «Дискретные структуры»: {}'.format(subject),
+                  body='Здравствуйте, {}!\n{}'.format(user.firstname, body),
+                  recipients=[user.email])
     mail.send(msg)
 
 

@@ -1,19 +1,26 @@
-from flask import Blueprint, render_template, request, abort, jsonify, url_for
+from flask import Blueprint, render_template, request, abort, jsonify, current_app
 import flask_login
-from json import loads as load_json
-from json import dumps as dump_json
+from flask_mail import Message
 
+from json import dumps as dump_json
+import random
+from datetime import datetime
+
+from hashlib import md5 as md5hasher
+def md5(s):
+    m = md5hasher()
+    m.update(s.encode())
+    return m.hexdigest()
 
 from blueprints.models import \
     db, \
     Group, \
     Participant, \
     Role, \
-    TrajectoryContent, \
-    Trajectory, \
     User, \
     GroupMembership, \
-    ParticipantExtraInfo
+    ParticipantExtraInfo, \
+    SystemAdministrator
 
 migration_tools_blueprint = Blueprint('migration_tools', __name__, template_folder='templates')
 
@@ -21,6 +28,9 @@ migration_tools_blueprint = Blueprint('migration_tools', __name__, template_fold
 @migration_tools_blueprint.route('/migration_tools', methods=['POST', 'GET'])
 @flask_login.login_required
 def interface():
+    if not SystemAdministrator.query.filter_by(user_id=flask_login.current_user.id).first():
+        abort(403)
+
     if request.method == 'GET':
         return render_template('form.html')
     else:
@@ -40,7 +50,7 @@ def interface():
                     db.session.add(new_user)
 
             db.session.commit()
-            return 'Добавлено пользователей произведено'
+            return 'Добавление пользователей произведено'
 
         elif user_request == 'add_learners':
             course_id = json_data.get('course_id')
@@ -77,5 +87,26 @@ def interface():
                 db.session.add(pef)
             db.session.commit()
             return 'Данные внесены успешно'
+        elif user_request == 'recover_password':
+            if 'usernames' not in json_data:
+                return 'Error'
+
+            for user in User.query.filter(User.username.in_(json_data.get('usernames'))).all():
+                if not user.email:
+                    return jsonify(result='Невозможно выслать пароль: не указан email.')
+
+                random.seed(str(datetime.now()))
+                letters = 'qwertyuiopasdfghjklzxcvbnm1029384756'
+                new_password = ''.join(letters[int(random.random() * len(letters))] for _ in range(8))
+
+                msg = Message(subject='Временный пароль к информационной системе',
+                              body='''Ваше имя пользователя для входа в систему progensys.dainiak.com: “{}”\nВаш пароль для входа: “{}”'''.format(user.username, new_password),
+                              recipients=[user.email])
+                current_app.config['MAILER'].send(msg)
+
+                user.password_hash = md5(new_password)
+
+            db.session.commit()
+            return 'Восстановление паролей прошло успешно.'
 
         return 'Запрос не распознан'
