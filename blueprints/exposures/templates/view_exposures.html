@@ -1,4 +1,16 @@
 {% extends 'base.html' %}
+{% block head %}
+    <script type="text/javascript">
+    $(function(){
+        $('button.grade-group').click(function (evt) {
+            var group_code = prompt('Введите номер группы:');
+            var exposure_id = evt.target.dataset['expid'];
+            var template = "{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string='EID', group='GID') }}";
+            window.location.href = template.replace('EID', exposure_id).replace('GID', group_code);
+        });
+    });
+    </script>
+{% endblock %}
 
 {% block body %}
     <div class="container-fluid">
@@ -8,7 +20,7 @@
             <td>{{ exposure.id }}</td>
             <td>{{ exposure.date }}</td>
             <td>{{ exposure.title }}</td>
-            <td><a class="btn btn-secondary" href="{{ url_for('exposures.view_exposure', course_id=course_id, exposure_string=exposure.id) }}">просмотр</a> <a class="btn btn-secondary" href="{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string=exposure.id) }}">проверка</a></td>
+            <td><a class="btn btn-secondary" href="{{ url_for('exposures.view_exposure', course_id=course_id, exposure_string=exposure.id) }}">просмотр</a> <a class="btn btn-secondary" href="{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string=exposure.id) }}">проверка всех</a><button class="btn btn-secondary grade-group" data-expid="{{ exposure.id }}">проверка группы…</button></td>
         </tr>{% endfor %}</tbody>
     </table>
     </div>

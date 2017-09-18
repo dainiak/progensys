@@ -196,6 +196,8 @@ def api_grading():
 
 
 @grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/group-<group>/grading', methods=['GET'])
+@grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/grading/group-<group>', methods=['GET'])
+@grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/grading/group-<group>/', methods=['GET'])
 @grading_blueprint.route('/course-<int:course_id>/exposure-<exposure_string>/grading', methods=['GET'])
 @flask_login.login_required
 def view_grading_table(exposure_string, course_id, group=None):
