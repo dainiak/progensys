@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    <div class="container-fluid">
+    <table class="table table-sm table-hover">
+        <thead class="thead-default"><th>ID</th><th>Дата</th><th>Заголовок</th><th>Действия</th></thead>
+        <tbody>{% for exposure in exposures %}<tr>
+            <td>{{ exposure.id }}</td>
+            <td>{{ exposure.date }}</td>
+            <td>{{ exposure.title }}</td>
+            <td><a class="btn btn-secondary" href="{{ url_for('exposures.view_exposure', course_id=course_id, exposure_string=exposure.id) }}">просмотр</a> <a class="btn btn-secondary" href="{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string=exposure.id) }}">проверка</a></td>
+        </tr>{% endfor %}</tbody>
+    </table>
+    </div>
+{% endblock body %}

@@ -703,3 +703,29 @@ def new_exposure():
             exposure_string=str(exposure.id),
             course_id=course_id,
             group=None))
+
+@exposures_blueprint.route('/course-<int:course_id>/exposures', methods=['GET'])
+@exposures_blueprint.route('/course-<int:course_id>/exposures/', methods=['GET'])
+@flask_login.login_required
+def view_exposures(course_id):
+    if not db.session.query(
+                Participant
+            ).filter(
+                Participant.user_id == flask_login.current_user.id,
+                Participant.course_id == course_id,
+                Participant.role_id == Role.id,
+                Role.code.in_(['ADMIN', 'INSTRUCTOR', 'GRADER'])
+            ).first():
+        abort(403)
+    exposures = []
+    for exposure in Exposure.query.filter(Exposure.course_id == course_id).order_by(Exposure.timestamp.desc()).all():
+        exposures.append({
+            'id': exposure.id,
+            'date': exposure.timestamp.strftime('%Y-%m-%d'),
+            'title': exposure.title
+        })
+    return render_template(
+        'view_exposures.html',
+        exposures=exposures,
+        course_id=course_id
+    )

@@ -64,6 +64,7 @@ def api_courses():
         if not role_code:
             abort(403)
         action_list = []
+
         if role_code == 'ADMIN':
             action_list.append({
                 'title': 'Управление участниками',
@@ -78,6 +79,16 @@ def api_courses():
             action_list.append({
                 'title': 'Управление траекториями',
                 'url': url_for('courses.view_course_trajectories', course_id=course_id)
+            })
+        if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
+            action_list.append({
+                'title': 'Произведённые выдачи',
+                'url': url_for('exposures.view_exposures', course_id=course_id)
+            })
+        if role_code == 'LEARNER':
+            action_list.append({
+                'title': 'Информационная панель обучающегося',
+                'url': url_for('learner_dashboard.view_learner_dashboard', course_id=course_id)
             })
 
         return jsonify(action_list)
