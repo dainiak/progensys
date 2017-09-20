@@ -71,11 +71,22 @@ def view_exposure(course_id, exposure_string):
     if not exposure:
         abort(404)
 
+    # TODO: make this a single SQL query instead of SQL&Python mix
+    max_problems_per_set = max(x[1] for x in db.session.query(
+        ProblemSetContent.problem_set_id, db.func.count(ProblemSetContent.problem_id)
+    ).group_by(
+        ProblemSetContent.problem_set_id
+    ).filter(
+        ProblemSetContent.problem_set_id == ExposureContent.problem_set_id,
+        ExposureContent.exposure_id == exposure.id
+    ).all())
+
     return render_template(
         'view_exposure.html',
         exposure_id=exposure_id,
         course_id=course_id,
-        exposure_date=exposure.timestamp.strftime('%Y-%m-%d')
+        exposure_date=exposure.timestamp.strftime('%Y-%m-%d'),
+        max_problems_per_set=max_problems_per_set
     )
 
 

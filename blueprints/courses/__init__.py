@@ -102,6 +102,7 @@ def view_courses():
 
 @courses_blueprint.route('/course-<int:course_id>/')
 @courses_blueprint.route('/course-<int:course_id>')
+@flask_login.login_required
 def view_course(course_id):
     if not flask_login.current_user or not flask_login.current_user.username:
         abort(403)

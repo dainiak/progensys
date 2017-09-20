@@ -13,7 +13,7 @@
         $(function () {
             function getSingleProblemFields(){
                 var list = [];
-                for(var i = 1; i <= 5; ++i){
+                for(var i = 1; i <= {{ max_problems_per_set }}; ++i){
                     list.push(function(pNumber){return {
                         title: "Задача " + pNumber.toString(),
                         name: "pid" + pNumber.toString(),
