@@ -167,7 +167,7 @@ def print_exposure(course_id, exposure_string):
                     ProblemSetExtra.sort_key,
                     ProblemSetExtra.content
                 ).filter(
-                        ProblemSetExtra.problem_set_id == problem_set_id
+                    ProblemSetExtra.problem_set_id == problem_set_id
                 ).all():
             results[-1]['problem_set_content'].append({
                 'sort_key': sort_key,
@@ -285,31 +285,35 @@ def api_exposure():
     elif json['action'] == 'delete':
         item = json.get('item')
         if not item:
-            return jsonify(error='No data provided for storing the grading results')
+            abort(200)
         user_id = item.get('user_id')
         exposure_id = item.get('exposure_id')
         problem_set_id = item.get('problem_set_id')
         if None in [user_id, exposure_id, problem_set_id]:
-            return jsonify(error='Data required for deleting exposure record was not provided')
+            abort(200)
         exposure_record = ExposureContent.query.filter_by(
             exposure_id=exposure_id,
             user_id=user_id,
             problem_set_id=problem_set_id
         ).first()
         if not exposure_record:
-            return jsonify(error='The specified exposure record was not found')
+            abort(200)
         db.session.delete(exposure_record)
-        db.session.commit()
+
         result_report = 'Deleted the exposure record.'
         problem_set = ProblemSet.query.filter_by(id=problem_set_id).first()
         if (problem_set.is_adhoc and not db.session.query(
-                    ExposureContent.id
+                    ExposureContent.exposure_id
                 ).filter(
                     ExposureContent.problem_set_id == problem_set_id
                 ).first()):
+            ProblemSetContent.query.filter_by(problem_set_id=problem_set_id).delete()
+            ProblemSetExtra.query.filter_by(problem_set_id=problem_set_id).delete()
+
             db.session.delete(problem_set)
-            db.session.commit()
             result_report += ' The problem set was ad hoc and not used elsewhere, so deleted it too.'
+
+        db.session.commit()
         return jsonify(result=result_report)
 
     elif json['action'] == 'update':

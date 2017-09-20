@@ -30,8 +30,8 @@
                 {
                     title: "Студент",
                     name: "learner_name",
-                    itemTemplate: function(value) {
-                        return $("<span>").text(value);
+                    itemTemplate: function(value, item) {
+                        return $("<a>").attr('href', "{{ url_for('learner_dashboard.view_learner_dashboard', course_id=course_id, user_id='99999999') }}".replace('99999999', item.user_id)).text(value);
                     },
                     filtering: false
                 },
@@ -47,7 +47,7 @@
                     filtering: false
                 }
             ].concat(problemFields).concat([{
-                type: "control", modeSwitchButton: false, editButton: true, deleteButton: false
+                type: "control", modeSwitchButton: false, editButton: false, deleteButton: true
             }]);
 
             $("#jsGrid").jsGrid({
@@ -90,6 +90,30 @@
                         }).done(function () {
                             $.toaster({
                                 message : 'Изменения сохранены',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось сохранить изменения',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    deleteItem: function (item) {
+                        item.exposure_id = {{ exposure_id }};
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/exposure",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'delete',
+                                item: item,
+                                course_id: {{ course_id }}
+                            })
+                        }).done(function (response) {
+                            $.toaster({
+                                message : 'Изменения сохранены. Ответ сервера: ' + response.result,
                                 priority : 'success'
                             });
                         }).fail(function () {

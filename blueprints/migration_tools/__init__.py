@@ -91,6 +91,7 @@ def interface():
             if 'usernames' not in json_data:
                 return 'Error'
 
+            num_sent_mails = 0
             for user in User.query.filter(User.username.in_(json_data.get('usernames'))).all():
                 if not user.email:
                     return jsonify(result='Невозможно выслать пароль: не указан email.')
@@ -103,10 +104,11 @@ def interface():
                               body='''Ваше имя пользователя для входа в систему progensys.dainiak.com: “{}”\nВаш пароль для входа: “{}”'''.format(user.username, new_password),
                               recipients=[user.email])
                 current_app.config['MAILER'].send(msg)
+                num_sent_mails += 1
 
                 user.password_hash = md5(new_password)
 
             db.session.commit()
-            return 'Восстановление паролей прошло успешно.'
+            return 'Восстановление паролей прошло успешно, отправлено {} писем.'.format(num_sent_mails)
 
         return 'Запрос не распознан'
