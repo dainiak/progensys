@@ -1,9 +1,0 @@
-<textarea>
-{% for problem in problems %}
-Тема: {{ problem['topic'] }}
-ID: {{ problem['id'] }}
-{% if problem['clones'] %}Клоны: {{ problem['clones'] }}
-{% endif %}{{ problem['statement'] | safe }}
-
-{% endfor %}
-</textarea>
