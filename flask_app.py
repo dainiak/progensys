@@ -5,7 +5,7 @@ from flask import render_template, request, redirect, url_for
 
 from flask_mail import Mail, Message
 
-from blueprints.models import db, Problem, Topic, User, Trajectory, History
+from blueprints.models import db, User
 
 from blueprints.problems import problems_blueprint
 from blueprints.problem_set import problem_set_blueprint
@@ -25,6 +25,7 @@ import flask_login
 
 # Security sensitive constants are imported from a file not being synced with github
 from tpbeta_security import *
+
 
 def parse_person_name(name):
     tokens = name.strip().split()
@@ -64,7 +65,7 @@ app.config['MAIL_PASSWORD'] = tpbeta_mail_password
 app.config['MAIL_DEFAULT_SENDER'] = tpbeta_mail_default_sender
 app.config['MAIL_USE_SSL'] = True
 
-app.debug = True
+app.debug = tpbeta_debug_mode
 db.init_app(app)
 
 
