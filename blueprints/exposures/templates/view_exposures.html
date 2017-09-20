@@ -20,7 +20,10 @@
             <td>{{ exposure.id }}</td>
             <td>{{ exposure.date }}</td>
             <td>{{ exposure.title }}</td>
-            <td><a class="btn btn-secondary" href="{{ url_for('exposures.view_exposure', course_id=course_id, exposure_string=exposure.id) }}">просмотр</a> <a class="btn btn-secondary" href="{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string=exposure.id) }}">проверка всех</a><button class="btn btn-secondary grade-group" data-expid="{{ exposure.id }}">проверка группы…</button></td>
+            <td>
+                <a class="btn btn-secondary" href="{{ url_for('exposures.view_exposure', course_id=course_id, exposure_string=exposure.id) }}">просмотр</a>
+                <a class="btn btn-secondary" href="{{ url_for('grading.view_grading_table', course_id=course_id, exposure_string=exposure.id) }}">проверка всех</a>
+                <button class="btn btn-secondary grade-group" data-expid="{{ exposure.id }}">проверка группы…</button></td>
         </tr>{% endfor %}</tbody>
     </table>
     </div>
