@@ -110,14 +110,19 @@ def view_learner_dashboard(course_id, user_id=None):
     ).all():
         problems_by_topic[pta.topic_id].add(pta.problem_id)
 
-    user_problems_solved = set(x for (x,) in db.session.query(
-            ProblemStatus.problem_id
+    user_problems_solved = set()
+    problems_on_revision = set()
+    for problem_id, code in db.session.query(
+            ProblemStatus.problem_id,
+            ProblemStatusInfo.code
         ).filter(
             ProblemStatus.user_id == user_id,
             ProblemStatus.status_id == ProblemStatusInfo.id,
-            # ProblemStatusInfo.code.in_(['SOLUTION_NEEDS_REVISION', 'SOLUTION_CORRECT'])
-            ProblemStatusInfo.code == 'SOLUTION_CORRECT'
-        ).all())
+            ProblemStatusInfo.code.in_(['SOLUTION_NEEDS_REVISION', 'SOLUTION_CORRECT'])
+        ).all():
+        user_problems_solved.add(problem_id)
+        if code == 'SOLUTION_NEEDS_REVISION':
+            problems_on_revision.add(problem_id)
 
     user_problems_remaining_for_counting = set(user_problems_solved)
 
@@ -142,13 +147,14 @@ def view_learner_dashboard(course_id, user_id=None):
             problem_id = next(iter(solved_problems_for_topic))
             user_problems_remaining_for_counting.remove(problem_id)
         else:
-            problem_id = False
+            problem_id = None
 
         trajectory.append({
             'topic_id': topic_id,
             'topic_title': topic_title,
             'topic_code': topic_code,
-            'problem_id': problem_id
+            'problem_id': problem_id,
+            'is_on_revision': problem_id in problems_on_revision
         })
 
     revisions = []

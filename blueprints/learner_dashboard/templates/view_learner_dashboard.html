@@ -73,7 +73,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}&#x2611;{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}—{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}—{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
