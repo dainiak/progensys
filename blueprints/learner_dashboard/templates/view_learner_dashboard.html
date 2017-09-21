@@ -44,17 +44,19 @@ $(function(){
             <div class="card-body collapse" id="exposuresAndGrading">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
+                    <tr>
                         <th>Дата и ID выдачи</th>
                         <th>ID набора задач</th>
                         <th>ID задач и результаты их проверки</th>
+                    </tr>
                     </thead>
                     <tbody>{% for exposure in exposures %}<tr>
                         <td>{{ exposure.date }}, #{{ exposure.id }}</td>
                         <td>{{ exposure.problem_set_id }}</td>
-                        <td>{% if exposure.grading_results %}<table><tr>
-                            {% for item in exposure.grading_results %}<td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>{% endfor %}</tr><tr>
-                            {% for item in exposure.grading_results %}<td class="center">{{ item.icon }}</td>{% endfor %}
-                        <tr></table>{% endif %}</td>
+                        <td>
+{% if exposure.grading_results %}<table>
+    <tr>{% for item in exposure.grading_results %}<td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>{% endfor %}</tr><tr>
+                            {% for item in exposure.grading_results %}<td class="center">{{ item.icon }}</td>{% endfor %}</tr></table>{% endif %}</td>
                     </tr>{% endfor %}</tbody>
                 </table>
             </div>
@@ -66,10 +68,11 @@ $(function(){
             <div class="card-body collapse" id="trajectoryProgress">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
-                        <th></th>
+                        <tr><th></th>
                         <th>ID темы</th>
                         <th>название/код темы</th>
                         <th>Задача, закрывшая тему</th>
+                        </tr>
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
@@ -96,10 +99,12 @@ $(function(){
                 <h5 class="h5 card-title">Статус Ваших дорешек</h5>
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
+                    <tr>
                         <th>ID задачи</th>
                         <th>статус</th>
                         <th>действия</th>
                         <th>комментарии проверяющего</th>
+                    </tr>
                     </thead>
                     <tbody>{% for item in revisions %}<tr>
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
