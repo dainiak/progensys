@@ -179,11 +179,16 @@ def view_learner_dashboard(course_id, user_id=None):
 
         event_date = user_problem_history.datetime.strftime('%Y-%m-%d')
         reviewer_comment = ''
-        submission_allowed = False
+
         time_left_for_submission = (user_problem_history.datetime + timedelta(days=10)) - datetime.now()
-        time_left_info = 'На отправку решения на проверку осталось менее {} секунд.'.format(
-            time_left_for_submission.total_seconds()
-        )
+        if time_left_for_submission.total_seconds() < 7200:
+            time_left_info = 'На отправку решения на проверку осталось менее {} <strong>минут</strong>.'.format(
+                int(time_left_for_submission.total_seconds() / 60)
+            )
+        else:
+            time_left_info = 'На отправку решения на проверку осталось менее {} часов.'.format(
+                int(time_left_for_submission.total_seconds() / 3600)
+            )
         submission_allowed = time_left_for_submission > timedelta(0)
 
         if user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
