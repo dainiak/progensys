@@ -20,7 +20,8 @@ from blueprints.models import \
     User, \
     GroupMembership, \
     ParticipantExtraInfo, \
-    SystemAdministrator
+    SystemAdministrator, \
+    Problem
 
 migration_tools_blueprint = Blueprint('migration_tools', __name__, template_folder='templates')
 
@@ -110,5 +111,21 @@ def interface():
 
             db.session.commit()
             return 'Восстановление паролей прошло успешно, отправлено {} писем.'.format(num_sent_mails)
+
+        elif user_request == 'change_dollars_to_brackets':
+            import re
+            q = Problem.query
+            if 'problem_id' in json_data:
+                q = q.filter(Problem.id == json_data['problem_id'])
+            elif not json_data.get('all'):
+                return 'Не указано, какие задачи менять.'
+
+            n = 0
+            for problem in q.all():
+                problem.statement = re.sub(r'\${2}([^$]+)\${2}', r'\[\1\]', problem.statement)
+                problem.statement = re.sub(r'\$([^$]+)\$', r'\(\1\)', problem.statement)
+                n += 1
+            db.session.commit()
+            return 'Запрос выполнен успешно. Просмотрено {} задач.'.format(n)
 
         return 'Запрос не распознан'

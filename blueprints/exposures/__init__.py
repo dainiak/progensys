@@ -302,16 +302,17 @@ def api_exposure():
 
         result_report = 'Deleted the exposure record.'
 
-        grading_results_query = ExposureGradingResult.query.filter(
+        grading_results = ExposureGradingResult.query.filter(
             ExposureGradingResult.user_id == user_id,
             ExposureGradingResult.problem_set_id == problem_set_id,
             ExposureGradingResult.exposure_grading_id == ExposureGrading.id,
             ExposureGrading.exposure_id == exposure_id
-        )
+        ).all()
 
-        if grading_results_query.first():
+        if len(grading_results) > 0:
             result_report += ' There were grading results associated with this exposure item. Deleted them.'
-            grading_results_query.delete()
+            for gr in grading_results:
+                db.session.delete(gr)
 
         problem_set = ProblemSet.query.filter_by(id=problem_set_id).first()
         if (problem_set.is_adhoc and not db.session.query(

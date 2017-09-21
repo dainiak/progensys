@@ -23,6 +23,7 @@
         editor.commands.removeCommands(["gotoline", "find"]);
 
         $('.btn-submit').on('click', function(){
+            $('#resultArea').text('');
             $.ajax({
                 type: "POST",
                 url: "/migration_tools",
