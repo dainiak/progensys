@@ -301,6 +301,18 @@ def api_exposure():
         db.session.delete(exposure_record)
 
         result_report = 'Deleted the exposure record.'
+
+        grading_results_query = ExposureGradingResult.query.filter(
+            ExposureGradingResult.user_id == user_id,
+            ExposureGradingResult.problem_set_id == problem_set_id,
+            ExposureGradingResult.exposure_grading_id == ExposureGrading.id,
+            ExposureGrading.exposure_id == exposure_id
+        )
+
+        if grading_results_query.first():
+            result_report += ' There were grading results associated with this exposure item. Deleted them.'
+            grading_results_query.delete()
+
         problem_set = ProblemSet.query.filter_by(id=problem_set_id).first()
         if (problem_set.is_adhoc and not db.session.query(
                     ExposureContent.exposure_id
@@ -312,11 +324,6 @@ def api_exposure():
 
             db.session.delete(problem_set)
             result_report += ' The problem set was ad hoc and not used elsewhere, so deleted it too.'
-        if db.session.query(ExposureGradingResult.problem_id).filter(
-            ExposureGradingResult.user_id == user_id,
-            ExposureGradingResult.exposure_grading_id == ExposureGrading.id
-        ):
-            pass
 
         db.session.commit()
         return jsonify(result=result_report)

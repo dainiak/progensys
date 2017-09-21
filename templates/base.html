@@ -31,18 +31,18 @@ MathJax.Hub.Config({
 	showMathMenuMSIE: false,
 	showProcessingMessages: false,
     extensions: [
-    	'tex2jax.js'
+        	'tex2jax.js'
     ],
 	jax: [
 		'input/TeX',
 		'output/CommonHTML'
 	],
     tex2jax: {
-        inlineMath: [['\\(','\\)'], ['$','$']],
-        displayMath: [['\\[','\\]'], ['$$','$$']],
+        inlineMath: [['\\(','\\)']],
+        displayMath: [['\\[','\\]']],
         skipTags: ['script','noscript','style'],
-    	processEnvironments: false,
-    	preview: 'none'
+    	    processEnvironments: false,
+    	    preview: 'none'
     },
     TeX: {
         extensions: [
