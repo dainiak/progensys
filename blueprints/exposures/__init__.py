@@ -312,6 +312,11 @@ def api_exposure():
 
             db.session.delete(problem_set)
             result_report += ' The problem set was ad hoc and not used elsewhere, so deleted it too.'
+        if db.session.query(ExposureGradingResult.problem_id).filter(
+            ExposureGradingResult.user_id == user_id,
+            ExposureGradingResult.exposure_grading_id == ExposureGrading.id
+        ):
+            pass
 
         db.session.commit()
         return jsonify(result=result_report)
