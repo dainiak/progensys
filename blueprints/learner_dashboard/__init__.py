@@ -180,14 +180,24 @@ def view_learner_dashboard(course_id, user_id=None):
         event_date = user_problem_history.datetime.strftime('%Y-%m-%d')
         reviewer_comment = ''
         submission_allowed = False
+        time_left_for_submission = (user_problem_history.datetime + timedelta(days=10)) - datetime.now()
+        time_left_info = 'На отправку решения на проверку осталось менее {} секунд.'.format(
+            time_left_for_submission.total_seconds()
+        )
+        submission_allowed = time_left_for_submission > timedelta(0)
+
         if user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
-            review_status = 'Задача была отправлена на дорешку в ходе проверки выдачи {}.'.format(event_date)
+            review_status = 'Задача была отправлена на дорешку в ходе проверки выдачи {}. {}'.format(
+                event_date,
+                time_left_info
+            )
             reviewer_comment = ''
-            submission_allowed = (datetime.now() - user_problem_history.datetime) < timedelta(days=10)
         elif user_problem_history.event == 'SENT_FOR_REVISION':
-            review_status = 'Решение было отправлено проверяющим на корректировку {}.'.format(event_date)
+            review_status = 'Решение было отправлено проверяющим на корректировку {}. {}'.format(
+                event_date,
+                time_left_info
+            )
             reviewer_comment = user_problem_history.comment
-            submission_allowed = (datetime.now() - user_problem_history.datetime) < timedelta(days=10)
         elif user_problem_history.event == 'LEARNER_SENT_REVIEW_REQUEST':
             submission_allowed = False
             review_status = 'Ваше решение находится на проверке с {}.'.format(event_date)
