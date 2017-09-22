@@ -39,6 +39,8 @@
                 }
             ];
 
+            var data = {{ review_requests | safe }};
+
             $("#jsGrid").jsGrid({
                 width: "100%",
                 height: "auto",
@@ -49,10 +51,24 @@
                 inserting: false,
                 editing: false,
                 fields: fields,
-                data: {{ review_requests | safe }},
+                controller: {
+                    loadData: function (filter){
+                        return $.grep(data, function(item){
+                            var result =
+                                (!filter.user_name || item.user_name.includes(filter.user_name))
+                                && (!filter.review_status || item.user_name.includes(filter.review_status))
+                                && (!filter.problem_id || item.problem_id == filter.problem_id)
+                                && (!filter.user_id || item.user_id == filter.user_id);
+                            return result;
+                        });
+                    }
+                },
                 rowClick: function (args) {
                     currentItem = args.item;
+                    var $row = $("#jsGrid").jsGrid("rowByItem", currentItem);
+                    $row.css('opacity', '0.3');
                     $('a.goto-sharelatex')[0].href = 'https://www.sharelatex.com/project/' + currentItem.sharelatex_project_id;
+                    $('#takeActionModal .modal-title').text('Возможные действия по задаче #' + currentItem.problem_id + ' пользователя ' + currentItem.user_name);
                     $('#takeActionModal').modal('show');
                     return false;
                 }
