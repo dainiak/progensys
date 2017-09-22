@@ -85,6 +85,17 @@ def api_courses():
                 'title': 'Произведённые выдачи',
                 'url': url_for('exposures.view_exposures', course_id=course_id)
             })
+        if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
+            action_list.append({
+                'title': 'Работа с дорешками',
+                'url': url_for('solution_reviews.view_solution_review_requests', course_id=course_id)
+            })
+        if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
+            action_list.append({
+                'title': 'Создать набор задач…',
+                'url': url_for('problem_sets.new_problem_set', course_id=course_id)
+            })
+
         if role_code == 'LEARNER':
             action_list.append({
                 'title': 'Информационная панель обучающегося',
