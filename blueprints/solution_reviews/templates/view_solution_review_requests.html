@@ -51,22 +51,23 @@
                 inserting: false,
                 editing: false,
                 fields: fields,
-                controller: {
-                    loadData: function (filter){
-                        var filtered_data = data;/*$.grep(data, function(item){
-                            var result =
-                                (!filter.user_name || item.user_name.includes(filter.user_name))
-                                && (!filter.review_status || item.user_name.includes(filter.review_status))
-                                && (!filter.problem_id || item.problem_id == filter.problem_id)
-                                && (!filter.user_id || item.user_id == filter.user_id);
-                            return result;
-                        });*/
-                        return {
-                            data: filtered_data,
-                            itemsCount: filtered_data.length
-                        };
-                    }
-                },
+                data: data,
+{#                controller: {#}
+{#                    loadData: function (filter){#}
+{#                        var filtered_data = data;/*$.grep(data, function(item){#}
+{#                            var result =#}
+{#                                (!filter.user_name || item.user_name.includes(filter.user_name))#}
+{#                                && (!filter.review_status || item.user_name.includes(filter.review_status))#}
+{#                                && (!filter.problem_id || item.problem_id == filter.problem_id)#}
+{#                                && (!filter.user_id || item.user_id == filter.user_id);#}
+{#                            return result;#}
+{#                        });*/#}
+{#                        return {#}
+{#                            data: filtered_data,#}
+{#                            itemsCount: filtered_data.length#}
+{#                        };#}
+{#                    }#}
+{#                },#}
                 rowClick: function (args) {
                     currentItem = args.item;
                     var $row = $("#jsGrid").jsGrid("rowByItem", currentItem);
