@@ -31,6 +31,7 @@ def view_problems(problem_id=None):
 
     if role_code == 'LEARNER':
         return redirect(url_for('problems.print_problem', course_id=2, problem_id=problem_id))
+
     if role_code not in ['INSTRUCTOR', 'ADMIN']:
         abort(403)
     return render_template('view_problems.html', problem_id=problem_id)

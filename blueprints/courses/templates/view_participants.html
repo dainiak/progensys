@@ -125,7 +125,10 @@
                     {
                         title: "Username",
                         name: "username",
-                        type: "text"
+                        type: "text",
+                        itemTemplate: function(value, item) {
+                            return $("<a>").attr('href', "{{ url_for('learner_dashboard.view_learner_dashboard', course_id=course_id, user_id='99999999') }}".replace('99999999', item.user_id)).text(value);
+                        }
                     },
                     {
                         title: "E-mail",
