@@ -14,7 +14,24 @@
 
     <script>
         $(function () {
+            var $textarea = $('#commentArea');
+            var editor = ace.edit($textarea[0]);
+            editor.$blockScrolling = Infinity;
+            editor.setOptions({
+                theme: 'ace/theme/chrome',
+                mode: 'ace/mode/latex',
+                minLines: 3,
+                maxLines: Infinity,
+                wrap: true,
+                showGutter: true,
+                fadeFoldWidgets: false,
+                showPrintMargin: false
+            });
+
+            editor.commands.removeCommands(["gotoline", "find"]);
+
             var currentItem = null;
+
             var fields = [
                 {
                     title: "ID задачи",
@@ -67,30 +84,13 @@
                 },
                 rowClick: function (args) {
                     currentItem = args.item;
-                    var $row = $("#jsGrid").jsGrid("rowByItem", currentItem);
-                    $row.css('opacity', '0.3');
+                    editor.setValue('');
                     $('a.goto-sharelatex')[0].href = 'https://www.sharelatex.com/project/' + currentItem.sharelatex_project_id;
                     $('#takeActionModal .modal-title').text('Возможные действия по задаче #' + currentItem.problem_id + ' пользователя ' + currentItem.user_name);
                     $('#takeActionModal').modal('show');
                     return false;
                 }
             });
-
-            var $textarea = $('#commentArea');
-            var editor = ace.edit($textarea[0]);
-            editor.$blockScrolling = Infinity;
-            editor.setOptions({
-                theme: 'ace/theme/chrome',
-                mode: 'ace/mode/latex',
-                minLines: 3,
-                maxLines: Infinity,
-                wrap: true,
-                showGutter: true,
-                fadeFoldWidgets: false,
-                showPrintMargin: false
-            });
-
-            editor.commands.removeCommands(["gotoline", "find"]);
 
             function sendCommand(action) {
                 $.ajax({
@@ -110,6 +110,7 @@
                         message : response.result.toString(),
                         priority : 'success'
                     });
+                    $("#jsGrid").jsGrid("rowByItem", currentItem).css('opacity', '0.3');
                 }).fail(function () {
                     $.toaster({
                         message : 'Не удалось сохранить изменения',
