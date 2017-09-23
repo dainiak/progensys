@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for
 from blueprints.models import \
     db, \
     Role, \
@@ -29,9 +29,12 @@ def view_problems(problem_id=None):
         Role.id == Participant.role_id
     ).first()
 
+    if role_code == 'LEARNER':
+        return redirect(url_for('problems.print_problem', course_id=2, problem_id=problem_id))
     if role_code not in ['INSTRUCTOR', 'ADMIN']:
         abort(403)
     return render_template('view_problems.html', problem_id=problem_id)
+
 
 @problems_blueprint.route('/course-<int:course_id>/problem-<int:problem_id>/print', methods=['GET'])
 def print_problem(course_id, problem_id):
