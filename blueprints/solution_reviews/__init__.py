@@ -84,6 +84,9 @@ def view_solution_review_requests(course_id):
         db.session.commit()
         return jsonify(result='Изменения успешно сохранены')
 
+    if current_user_role not in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
+        abort(403)
+
     review_requests = []
     for user_id, name_first, name_last, problem_id in db.session.query(
                 User.id,
