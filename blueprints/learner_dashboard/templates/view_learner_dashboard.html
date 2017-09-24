@@ -12,7 +12,7 @@ $(function(){
             data: JSON.stringify({
                 action: 'submit_for_review',
                 user_id: {{ user_id }},
-                problem_id: parseInt(evt.target.id),
+                problem_id: parseInt(evt.target.dataset.problemId),
                 course_id: {{ course_id }}
             })
         }).done(function (response) {
@@ -26,7 +26,31 @@ $(function(){
                 priority : 'danger'
             });
         });
-    })
+    });
+    $('button.btn-unwanted-topic').click(function (evt) {
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('exposures.mark_topic_as_unwanted', course_id=course_id) }}",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({
+                action: 'mark_topic_as_unwanted',
+                user_id: {{ user_id }},
+                topic_id: parseInt(evt.target.dataset.topicId),
+                course_id: {{ course_id }}
+            })
+        }).done(function (response) {
+            $.toaster({
+                message : response.result.toString(),
+                priority : 'success'
+            });
+        }).fail(function () {
+            $.toaster({
+                message : 'Не удалось сохранить изменения',
+                priority : 'danger'
+            });
+        });
+    });
 });
 </script>
 
@@ -76,7 +100,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}—{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<button class="btn btn-secondary btn-unwanted-topic" data-topic-id="{{ item.topic_id }}">отложить</button>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
@@ -109,7 +133,7 @@ $(function(){
                     <tbody>{% for item in revisions %}<tr>
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
                         <td>{{ item.review_status | safe }}</td>
-                        <td>{% if item.submission_allowed %}<button class="btn btn-default btn-submit-for-review" id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
+                        <td>{% if item.submission_allowed %}<button class="btn btn-default btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
                         <td>{{ item.reviewer_comment }}</td>
                     </tr>{% endfor %}</tbody>
                 </table>

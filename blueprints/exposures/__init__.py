@@ -23,7 +23,8 @@ from blueprints.models import \
     ProblemStatus, \
     GroupMembership, \
     Group, \
-    ProblemSetExtra
+    ProblemSetExtra, \
+    History
 
 
 from datetime import datetime
@@ -730,7 +731,9 @@ def new_exposure():
             'exposures.view_exposure',
             exposure_string=str(exposure.id),
             course_id=course_id,
-            group=None))
+            group=None,
+            log_info=log_info
+        ))
 
 @exposures_blueprint.route('/course-<int:course_id>/exposures', methods=['GET'])
 @exposures_blueprint.route('/course-<int:course_id>/exposures/', methods=['GET'])
@@ -757,3 +760,39 @@ def view_exposures(course_id):
         exposures=exposures,
         course_id=course_id
     )
+
+
+@exposures_blueprint.route('/course-<int:course_id>/mark-topic-as-unwanted', methods=['POST'])
+@flask_login.login_required
+def mark_topic_as_unwanted(course_id):
+    json = request.get_json()
+    user_id = json.get('user_id')
+    topic_id = json.get('topic_id')
+    if None in [user_id, topic_id]:
+        abort(400)
+
+    role = db.session.query(
+        Role.code
+    ).filter(
+        Participant.user_id == flask_login.current_user.id,
+        Participant.course_id == course_id,
+        Participant.role_id == Role.id
+    ).first()
+
+    if not(
+            (user_id == flask_login.current_user.id and role == 'LEARNER')
+            or role in ['ADMIN', 'INSTRUCTOR']
+            ):
+        abort(403)
+
+    if not json or json.get('action') != 'mark_topic_as_unwanted':
+        abort(400)
+
+    h = History()
+    h.user_id = user_id
+    h.event = 'MARKED_TOPIC_AS_UNWANTED'
+    h.comment = str(topic_id)
+    h.datetime = datetime.now()
+    db.session.add(h)
+
+    return jsonify(result="Запрос сохранён до ближайшей письменной работы")
