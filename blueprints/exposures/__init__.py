@@ -772,13 +772,13 @@ def mark_topic_as_unwanted(course_id):
     if None in [user_id, topic_id]:
         abort(400)
 
-    (role,) = db.session.query(
+    role = db.session.query(
         Role.code
     ).filter(
         Participant.user_id == flask_login.current_user.id,
         Participant.course_id == course_id,
         Participant.role_id == Role.id
-    ).first()
+    ).scalar()
 
     if not(
             (user_id == flask_login.current_user.id and role == 'LEARNER')
