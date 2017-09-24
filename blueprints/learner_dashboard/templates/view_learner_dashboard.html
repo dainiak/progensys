@@ -61,6 +61,7 @@ $(function(){
 
 {% block body %}
     <div class="container-fluid">
+    {% if instructor_mode %}Результаты пользователя {{ username }}{% endif %}
         <div class="card">
             <div class="card-header">
                 <h3 class="h3"><a data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a></h3>

@@ -17,7 +17,8 @@ from blueprints.models import \
     TrajectoryContent, \
     ProblemTopicAssignment, \
     History, \
-    ParticipantExtraInfo
+    ParticipantExtraInfo, \
+    User
 
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -36,24 +37,27 @@ def view_learner_dashboard(course_id, user_id=None):
     if not user_id:
         user_id = flask_login.current_user.id
 
-    if flask_login.current_user.id != user_id and not db.session.query(
-                Participant
-            ).filter(
-                Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == course_id,
-                Participant.role_id == Role.id,
-                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
-            ).first():
+    role = db.session.query(
+        Role.code
+    ).filter(
+        Participant.user_id == flask_login.current_user.id,
+        Participant.course_id == course_id,
+        Participant.role_id == Role.id
+    ).scalar()
+
+    if ((flask_login.current_user.id != user_id and role not in ['ADMIN', 'INSTRUCTOR'])
+            or (flask_login.current_user.id == user_id and role != 'LEARNER')):
         abort(403)
-    elif flask_login.current_user.id == user_id and not db.session.query(
-                Participant
-            ).filter(
-                Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == course_id,
-                Participant.role_id == Role.id,
-                Role.code.in_(['LEARNER'])
-            ).first():
-        abort(404)
+
+    if role in ['ADMIN', 'INSTRUCTOR']:
+        instructor_mode = True
+        username = db.session.query(
+            User.username
+        ).filter(
+            User.id == user_id
+        ).scalar()
+    else:
+        instructor_mode = False
 
     exposures = []
     for exposure_id, exposure_timestamp, problem_set_id in db.session.query(
@@ -230,5 +234,7 @@ def view_learner_dashboard(course_id, user_id=None):
         revisions=revisions,
         user_id=user_id,
         course_id=course_id,
-        sharelatex_project_id=sharelatex_project_id
+        sharelatex_project_id=sharelatex_project_id,
+        instructor_mode=instructor_mode,
+        username=username
     )
