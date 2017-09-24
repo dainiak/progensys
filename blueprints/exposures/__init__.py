@@ -763,9 +763,9 @@ def view_exposures(course_id):
     )
 
 
-@exposures_blueprint.route('/course-<int:course_id>/mark-topic-as-unwanted', methods=['POST'])
+@exposures_blueprint.route('/course-<int:course_id>/mark-topic-priority-for-learner', methods=['POST'])
 @flask_login.login_required
-def mark_topic_as_unwanted(course_id):
+def mark_topic_priority_for_learner(course_id):
     json = request.get_json()
     user_id = json.get('user_id')
     topic_id = json.get('topic_id')
@@ -786,12 +786,12 @@ def mark_topic_as_unwanted(course_id):
             ):
         abort(403)
 
-    if not json or json.get('action') != 'mark_topic_as_unwanted':
+    if not json or json.get('action') not in ['mark_topic_as_unwanted', 'mark_topic_as_favourable']:
         abort(400)
 
     h = History()
     h.user_id = user_id
-    h.event = 'MARKED_TOPIC_AS_UNWANTED'
+    h.event = 'MARKED_TOPIC_AS_UNWANTED' if json['action'] == 'mark_topic_as_unwanted' else 'MARKED_TOPIC_AS_FAVOURABLE'
     h.comment = str(topic_id)
     h.datetime = datetime.now()
     db.session.add(h)

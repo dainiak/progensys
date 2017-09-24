@@ -27,14 +27,14 @@ $(function(){
             });
         });
     });
-    $('button.btn-unwanted-topic').click(function (evt) {
+    $('button.btn-mark-topic').click(function (evt) {
         $.ajax({
             type: "POST",
-            url: "{{ url_for('exposures.mark_topic_as_unwanted', course_id=course_id) }}",
+            url: "{{ url_for('exposures.mark_topic_priority_for_learner', course_id=course_id) }}",
             contentType: "application/json",
             dataType: "json",
             data: JSON.stringify({
-                action: 'mark_topic_as_unwanted',
+                action: evt.target.dataset.emo == ':(' ? 'mark_topic_as_unwanted' : 'mark_topic_as_favourable',
                 user_id: {{ user_id }},
                 topic_id: parseInt(evt.target.dataset.topicId),
                 course_id: {{ course_id }}
@@ -61,7 +61,7 @@ $(function(){
 
 {% block body %}
     <div class="container-fluid">
-    {% if instructor_mode %}Результаты пользователя {{ username }}{% endif %}
+        {% if instructor_mode %}<h2 class="h2">Результаты пользователя {{ username }}</h2>{% endif %}
         <div class="card">
             <div class="card-header">
                 <h3 class="h3"><a data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a></h3>
@@ -101,7 +101,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<button class="btn btn-secondary btn-unwanted-topic" data-topic-id="{{ item.topic_id }}">отложить</button>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
