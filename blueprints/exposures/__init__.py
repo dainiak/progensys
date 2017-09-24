@@ -425,6 +425,7 @@ def view_exposure_table(course_id, exposure_date):
 
 
 @exposures_blueprint.route('/exposure/new', methods=['POST'])
+@flask_login.login_required
 def new_exposure():
     if not (request.form and request.form.get('user_ids')):
         abort(400)
@@ -771,7 +772,7 @@ def mark_topic_as_unwanted(course_id):
     if None in [user_id, topic_id]:
         abort(400)
 
-    role = db.session.query(
+    (role,) = db.session.query(
         Role.code
     ).filter(
         Participant.user_id == flask_login.current_user.id,

@@ -21,6 +21,7 @@ problems_blueprint = Blueprint('problems', __name__, template_folder='templates'
 @problems_blueprint.route('/problems', methods=['GET'])
 @problems_blueprint.route('/problem-<int:problem_id>/', methods=['GET'])
 @problems_blueprint.route('/problem-<int:problem_id>', methods=['GET'])
+@flask_login.login_required
 def view_problems(problem_id=None):
     (role_code,) = db.session.query(
         Role.code
@@ -38,6 +39,7 @@ def view_problems(problem_id=None):
 
 
 @problems_blueprint.route('/course-<int:course_id>/problem-<int:problem_id>/print', methods=['GET'])
+@flask_login.login_required
 def print_problem(course_id, problem_id):
     user_id = flask_login.current_user.id
     role_code = db.session.query(
