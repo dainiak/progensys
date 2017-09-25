@@ -5,19 +5,27 @@ import re
 
 
 def process_problem_variations_mathmode(text, variation=None):
-    return re.compile(r'\{\{(.*?)\}\}', re.DOTALL).sub(lambda m: ''.join(r'\class{problem-variation-' + str(
-                                                               i) + '}{ ' + opt + ' } ' for i, opt in
-                                                                   enumerate(m.group(1).split('||')))
-                                                       , text)
+    return re.compile(
+        r'\{\{(.*?)\}\}',
+        re.DOTALL
+    ).sub(
+        lambda m: ''.join(
+            r'\class{problem-variation-' + str(i) + '}{ ' + opt + ' } '
+            for i, opt in enumerate(m.group(1).split('||'))),
+        text
+    )
 
 
 def process_problem_variations_textmode(text, variation=None):
-    return re.compile(r'\{\{(.*?)\}\}', re.DOTALL).sub(lambda m: \
-                                                           ''.join(
-                                                               r'<span class="problem-variation-{0}">{1}</span>'.format(
-                                                                   i, opt) for i, opt in
-                                                               enumerate(m.group(1).split('||'))) \
-                                                       , text)
+    return re.compile(
+        r'\{\{(.*?)\}\}',
+        re.DOTALL
+    ).sub(
+        lambda m: ''.join(
+            r'<span class="problem-variation-{0}">{1}</span>'.format(i, opt)
+            for i, opt in enumerate(m.group(1).split('||'))),
+        text
+    )
 
 
 def gcd(x, y):
@@ -41,17 +49,29 @@ def process_problem_variations(text, variation=None):
             options = match_object.group(1).split('||')
             return options[variation % len(options)]
 
-        return re.compile(r'\{\{(.*?)\}\}', re.DOTALL).sub(variation_chooser, text)
+        return re.compile(
+            r'\{\{(.*?)\}\}', 
+            re.DOTALL
+        ).sub(
+            variation_chooser,
+            text
+        )
 
     num_variations = list(set(len(s.split('||')) for s in re.compile(r'\{\{(.*?)\}\}', re.DOTALL).findall(text)))
-    text = re.compile(r'\$\$(.*?)\$\$', re.DOTALL).sub(
-        lambda m: r'$${0}$$'.format(process_problem_variations_mathmode(m.group(1)), variation), text)
-    text = re.compile(r'\$(.*?)\$', re.DOTALL).sub(
-        lambda m: r'${0}$'.format(process_problem_variations_mathmode(m.group(1)), variation), text)
-    text = re.compile(r'\\\((.*?)\\\)', re.DOTALL).sub(
-        lambda m: r'\({0}\)'.format(process_problem_variations_mathmode(m.group(1)), variation), text)
-    text = re.compile(r'\\\[(.*?)\\\]', re.DOTALL).sub(
-        lambda m: r'\[{0}\]'.format(process_problem_variations_mathmode(m.group(1)), variation), text)
+    text = re.compile(
+        r'\\\((.*?)\\\)',
+        re.DOTALL
+    ).sub(
+        lambda m: r'\({0}\)'.format(process_problem_variations_mathmode(m.group(1)), variation),
+        text
+    )
+    text = re.compile(
+        r'\\\[(.*?)\\\]',
+        re.DOTALL
+    ).sub(
+        lambda m: r'\[{0}\]'.format(process_problem_variations_mathmode(m.group(1)), variation),
+        text
+    )
     text = process_problem_variations_textmode(text, variation)
 
     if (variation is not None) or len(num_variations) == 0:
@@ -91,13 +111,6 @@ def process_latex_lists(text):
         .replace(r'\begin{itemize}', '<ul>') \
         .replace(r'\end{itemize}', '</ul>') \
         .replace(r'\item', '<li>')
-
-
-def process_xypic_macros(text):
-    return re.compile(r'\\edge{(.*?)}', re.DOTALL).sub(lambda m: r'\ar@{{-}}[{0}]'.format(m.group(1)), text) \
-        .replace(r'\vrtxf', r'*[o]{\bullet}') \
-        .replace(r'\vrtx', r'*[o]{\circ}')
-
 
 def latex_to_html(text, variation=None):
     text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)

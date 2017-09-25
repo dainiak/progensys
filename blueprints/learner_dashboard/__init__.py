@@ -49,6 +49,7 @@ def view_learner_dashboard(course_id, user_id=None):
             or (flask_login.current_user.id == user_id and role != 'LEARNER')):
         abort(403)
 
+    username = ''
     if role in ['ADMIN', 'INSTRUCTOR']:
         instructor_mode = True
         username = db.session.query(
