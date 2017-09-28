@@ -55,6 +55,12 @@ $(function(){
 </script>
 
 <script src="/static/js/jquery.toaster.js"></script>
+
+<style type="text/css">
+    .opaque {
+        opacity: 0.5;
+    }
+</style>
 {% endblock %}
 
 {% block title %}Результаты{% endblock %}
@@ -101,7 +107,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}&#x2713;{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>

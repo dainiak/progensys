@@ -88,7 +88,8 @@
                                 return this._editSelect = $select;
                             },
                         editValue: function () {
-                            return parseInt(this._editSelect.val()) || 0;
+                            if(this._editSelect) {}
+                                return parseInt(this._editSelect.val()) || 0;
                         }
                     }}(i));
                 }
