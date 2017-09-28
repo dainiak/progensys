@@ -710,10 +710,8 @@ def new_exposure():
         for user_id in problem_sets:
             problem_set = ProblemSet()
             problem_set.is_adhoc = True
-            problem_set.title = 'Автоматически сгенерированный вариант для пользователя #{} выдачи #{}'.format(
-                user_id,
-                exposure.id
-            )
+            problem_set.title = \
+                f'Автоматически сгенерированный вариант для пользователя #{user_id} выдачи #{exposure.id}'
             db.session.add(problem_set)
             db.session.flush()
             db.session.add(ExposureContent(exposure.id, user_id, problem_set.id))

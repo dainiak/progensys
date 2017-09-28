@@ -4,6 +4,9 @@
 <script type="text/javascript">
 $(function(){
     $('button.btn-submit-for-review').click(function (evt) {
+        if (!window.confirm('Вы прочитали документ по работе с дорешками по адресу https://goo.gl/2YQL5o и проверили, что решение оформлено в соответствии с правилами?'))
+            return;
+
         $.ajax({
             type: "POST",
             url: "{{ url_for('solution_reviews.view_solution_review_requests', course_id=course_id) }}",
