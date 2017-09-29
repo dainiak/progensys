@@ -187,30 +187,22 @@ def view_learner_dashboard(course_id, user_id=None):
 
         time_left_for_submission = (user_problem_history.datetime + timedelta(days=10)) - datetime.now()
         if time_left_for_submission.total_seconds() < 7200:
-            time_left_info = 'На отправку решения на проверку осталось менее {} <strong>минут</strong>.'.format(
-                int(time_left_for_submission.total_seconds() / 60)
-            )
+            n_minutes =  int(time_left_for_submission.total_seconds() / 60)
+            time_left_info = f'На отправку решения на проверку осталось менее {n_minutes} <strong>минут</strong>.'
         else:
-            time_left_info = 'На отправку решения на проверку осталось менее {} часов.'.format(
-                int(time_left_for_submission.total_seconds() / 3600)
-            )
+            n_hours = int(time_left_for_submission.total_seconds() / 3600)
+            time_left_info = f'На отправку решения на проверку осталось менее {n_hours} часов.'
         submission_allowed = time_left_for_submission > timedelta(0)
 
         if user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
-            review_status = 'Задача была отправлена на дорешку в ходе проверки выдачи {}. {}'.format(
-                event_date,
-                time_left_info
-            )
+            review_status = f'Задача была отправлена на дорешку в ходе проверки выдачи {event_date}. {time_left_info}'
             reviewer_comment = ''
         elif user_problem_history.event == 'SENT_FOR_REVISION':
-            review_status = 'Решение было отправлено проверяющим на корректировку {}. {}'.format(
-                event_date,
-                time_left_info
-            )
+            review_status = f'Решение было отправлено проверяющим на корректировку {event_date}. {time_left_info}'
             reviewer_comment = user_problem_history.comment
         elif user_problem_history.event == 'LEARNER_SENT_REVIEW_REQUEST':
             submission_allowed = False
-            review_status = 'Ваше решение находится на проверке с {}.'.format(event_date)
+            review_status = f'Ваше решение находится на проверке с {event_date}.'
 
         revisions.append({
             'problem_id': problem_id,

@@ -70,11 +70,12 @@ $(function(){
 
 {% block body %}
     <div class="container-fluid">
-        {% if instructor_mode %}<h2 class="h2">Результаты пользователя {{ username }}</h2>{% endif %}
+        {% if instructor_mode %}<h2 class="h2">Результаты пользователя {{ username }}</h2>{% else %}
         <div class="card">
-            <div class="card-header">
-                <h3 class="h3"><a data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a></h3>
-            </div>
+        <a class="h4 card-header" href="https://goo.gl/2YQL5o" target="_blank">Справка по работе с информационной системой и дорешками</a>
+        </div>{% endif %}
+        <div class="card">
+            <a class="h4 card-header" data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a>
             <div class="card-body collapse" id="exposuresAndGrading">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
@@ -96,9 +97,7 @@ $(function(){
             </div>
         </div>
         <div class="card">
-            <div class="card-header">
-                <h3 class="h3"><a data-toggle="collapse" href="#trajectoryProgress">Движение по траектории</a></h3>
-            </div>
+            <a class="h4 card-header" data-toggle="collapse" href="#trajectoryProgress">Движение по траектории</a>
             <div class="card-body collapse" id="trajectoryProgress">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
@@ -110,15 +109,13 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
          </div>
         <div class="card">
-            <div class="card-header">
-                <h3 class="h3"><a data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a></h3>
-            </div>
+            <a class="h4 card-header" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
             <div class="card-body collapse" id="solutionRevisions">
                 <div class="card-block">
                 <h5 class="card-title h5">Полезные ссылки</h5>
@@ -143,7 +140,7 @@ $(function(){
                     <tbody>{% for item in revisions %}<tr>
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
                         <td>{{ item.review_status | safe }}</td>
-                        <td>{% if item.submission_allowed %}<button class="btn btn-default btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
+                        <td>{% if item.submission_allowed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
                         <td>{{ item.reviewer_comment }}</td>
                     </tr>{% endfor %}</tbody>
                 </table>

@@ -84,10 +84,40 @@
                 },
                 rowClick: function (args) {
                     currentItem = args.item;
-                    editor.setValue('');
                     $('a.goto-sharelatex')[0].href = 'https://www.sharelatex.com/project/' + currentItem.sharelatex_project_id;
-                    $('#takeActionModal .modal-title').text('Возможные действия по задаче #' + currentItem.problem_id + ' пользователя ' + currentItem.user_name);
+
+                    $('#takeActionModal .modal-title').text(
+                        currentItem.user_name
+                        + ': дорешка задачи #'
+                        + currentItem.problem_id
+                    );
+
+                    $('#takeActionModal .history').text('Идёт загрузка истории…');
                     $('#takeActionModal').modal('show');
+                    editor.setValue('');
+                    editor.focus();
+
+                    $.ajax({
+                        type: "POST",
+                        url: "{{ url_for('solution_reviews.view_solution_review_requests', course_id=course_id) }}",
+                        contentType: "application/json",
+                        dataType: "json",
+                        data: JSON.stringify({
+                            action: 'load_review_history',
+                            user_id: currentItem.user_id,
+                            problem_id: currentItem.problem_id,
+                            course_id: {{ course_id }}
+                        })
+                    }).done(function (response) {
+                        $('#takeActionModal .history').text('');
+                        $('#takeActionModal .history').html(
+                            '<ul><li>'
+                            + response.history.join('</li><li>')
+                            + '</li></ul>'
+                        );
+                    });
+
+
                     return false;
                 }
             });
@@ -145,22 +175,34 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Доступные действия</h5>
-                    <button type="button" class="close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <h4 class="modal-title"></h4>
+                    <button type="button" class="close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="commentArea">Комментарий обучающемуся:</label>
-                        <textarea id="commentArea" class="form-control form-control-lg"></textarea>
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="h5">Доступные действия</h4>
+                            <div class="form-group">
+                                <label for="commentArea">Опциональный комментарий, который увидит обучающийся (можно использовать LaTeX):</label>
+                                <textarea id="commentArea" class="form-control form-control-lg"></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> Просмотреть решение</a>
+                                <button type="button" class="btn btn-outline-secondary take-for-review">Взять на проверку</button>
+                                <button type="button" class="btn btn-outline-warning send-for-revision">Отослать на переделку</button>
+                                <button type="button" class="btn btn-outline-success accept-solution">Зачесть решение</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">История дорешки</h5>
+                            <p class="card-text history"></p>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a class="btn btn-secondary goto-sharelatex" target="_blank">Перейти в ShareLaTeX</a>
-                    <button type="button" class="btn btn-secondary take-for-review">Взять на проверку</button>
-                    <button type="button" class="btn btn-secondary send-for-revision">Отослать на переделку</button>
-                    <button type="button" class="btn btn-secondary accept-solution">Зачесть решение</button>
+
                 </div>
             </div>
         </div>

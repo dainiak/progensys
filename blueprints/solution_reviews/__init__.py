@@ -39,7 +39,11 @@ def view_solution_review_requests(course_id):
         action = json.get('action')
         if not (current_user_role in ['ADMIN', 'INSTRUCTOR', 'GRADER']
                 and action in [
-                    'take_for_review', 'accept_solution', 'send_for_revision', 'submit_for_review'
+                    'take_for_review',
+                    'accept_solution',
+                    'send_for_revision',
+                    'submit_for_review',
+                    'load_review_history'
                 ]
                 or current_user_role == 'LEARNER' and action == 'submit_for_review'):
             abort(400)
@@ -60,12 +64,45 @@ def view_solution_review_requests(course_id):
             db.session.commit()
             return jsonify(result='Запрос на проверку отправлен.')
 
+        if action == 'load_review_history':
+            review_history = db.session.query(
+                History.event,
+                History.comment,
+                History.datetime
+            ).filter(
+                History.problem_id == json.get('problem_id'),
+                History.user_id == json.get('user_id'),
+                History.event.in_([
+                    'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING',
+                    'SENT_FOR_REVISION',
+                    'LEARNER_SENT_REVIEW_REQUEST',
+                    'TAKEN_FOR_REVIEW',
+                    'SOLUTION_ACCEPTED'
+                ])
+            ).order_by(
+                History.datetime.desc()
+            ).all()
+
+            descriptions = {
+                'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING': 'Задача отправлена с контрольной на дорешку',
+                'SENT_FOR_REVISION': 'Преподаватель отправил решение на переделку',
+                'LEARNER_SENT_REVIEW_REQUEST': 'Студент отправил решение на проверку',
+                'TAKEN_FOR_REVIEW': 'Преподаватель взял решение на проверку',
+                'SOLUTION_ACCEPTED': 'Решение зачтено'
+            }
+
+            return jsonify(history=[
+                f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]} с комментарием “{(comment or "").strip()}”'
+                for event, comment, timestamp in review_history
+            ])
+
         grader_username = flask_login.current_user.username
         h = History()
         h.user_id = user_id
         h.problem_id = json.get('problem_id')
         h.datetime = datetime.now()
         h.comment = '{} ({})'.format(json.get('comment', ''), grader_username)
+
 
         if action == 'take_for_review':
             h.event = 'TAKEN_FOR_REVIEW',
