@@ -229,5 +229,6 @@ def view_learner_dashboard(course_id, user_id=None):
         course_id=course_id,
         sharelatex_project_id=sharelatex_project_id,
         instructor_mode=instructor_mode,
-        username=username
+        username=username,
+        time_points_left=100
     )

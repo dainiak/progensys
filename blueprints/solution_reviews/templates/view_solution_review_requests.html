@@ -6,9 +6,9 @@
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/mode-latex.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/theme-chrome.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/mode-latex.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/theme-chrome.js"></script>
 
     <script src="/static/js/jquery.toaster.js"></script>
 
@@ -133,7 +133,8 @@
                         user_id: currentItem.user_id,
                         problem_id: currentItem.problem_id,
                         course_id: {{ course_id }},
-                        comment: editor.getValue()
+                        comment: editor.getValue(),
+                        deadline: currentItem.deadline
                     })
                 }).done(function (response) {
                     $.toaster({
@@ -164,7 +165,18 @@
                 $('#takeActionModal').modal('hide');
                 sendCommand('accept_solution');
             });
+            $('#takeActionModal button.change-deadline').click(function(){
+                alert('Совсем скоро эта фича будет реализована…')
+                return;
 
+                var d = new Date();
+                var result = window.prompt('Введите новый deadline в формате ГГГГ-ММ-ДД', d.getFullYear().toString() + '-' + d.getMonth().toString() + '-' + d.getDate().toString());
+                if(result) {
+                    currentItem.deadline = result;
+                    $('#takeActionModal').modal('hide');
+                    sendCommand('change_deadline');
+                }
+            });
         });
     </script>
 {% endblock head %}
@@ -187,10 +199,11 @@
                                 <textarea id="commentArea" class="form-control form-control-lg"></textarea>
                             </div>
                             <div class="btn-group">
-                                <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> Просмотреть решение</a>
+                                <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> ShareLaTeX</a>
                                 <button type="button" class="btn btn-outline-secondary take-for-review">Взять на проверку</button>
-                                <button type="button" class="btn btn-outline-warning send-for-revision">Отослать на переделку</button>
-                                <button type="button" class="btn btn-outline-success accept-solution">Зачесть решение</button>
+                                <button type="button" class="btn btn-outline-secondary change-deadline">Изменить deadline</button>
+                                <button type="button" class="btn btn-outline-danger send-for-revision">Запросить переделку</button>
+                                <button type="button" class="btn btn-outline-success accept-solution">Зачесть</button>
                             </div>
                         </div>
                     </div>
@@ -200,9 +213,6 @@
                             <p class="card-text history"></p>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-
                 </div>
             </div>
         </div>
