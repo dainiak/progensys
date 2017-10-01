@@ -102,7 +102,10 @@ def interface():
                 new_password = ''.join(letters[int(random.random() * len(letters))] for _ in range(8))
 
                 msg = Message(subject='Временный пароль к информационной системе',
-                              body='''Ваше имя пользователя для входа в систему progensys.dainiak.com: “{}”\nВаш пароль для входа: “{}”'''.format(user.username, new_password),
+                              body=
+f'''Ваше имя пользователя для входа в систему progensys.dainiak.com: “{user.username}”
+Ваш пароль для входа: “{new_password}”
+Письмо выслано автоматически; пожалуйста, не отвечайте на него.''',
                               recipients=[user.email])
                 current_app.config['MAILER'].send(msg)
                 num_sent_mails += 1

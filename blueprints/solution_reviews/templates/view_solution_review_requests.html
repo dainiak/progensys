@@ -37,12 +37,22 @@
                     title: "ID задачи",
                     name: "problem_id",
                     type: "number",
-                    width: 5
+                    width: 5,
+                    itemTemplate: function(value, item) {
+                        return $("<a>").attr(
+                            'href',
+                            "{{ url_for('problems.view_problems', course_id=course_id, problem_id='99999999') }}".replace('99999999', item.problem_id)).text(value);
+                    }
                 },
                 {
                     title: "ID пользователя",
                     name: "user_id",
-                    type: "number"
+                    type: "number",
+                    itemTemplate: function(value, item) {
+                        return $("<a>").attr(
+                            'href',
+                            "{{ url_for('learner_dashboard.view_learner_dashboard', course_id=course_id, user_id='99999999') }}".replace('99999999', item.user_id)).text(value);
+                    }
                 },
                 {
                     title: "Имя пользователя",
@@ -166,7 +176,7 @@
                 sendCommand('accept_solution');
             });
             $('#takeActionModal button.change-deadline').click(function(){
-                alert('Совсем скоро эта фича будет реализована…')
+                alert('Совсем скоро эта фича будет реализована…');
                 return;
 
                 var d = new Date();

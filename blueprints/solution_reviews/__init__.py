@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, current_app
+from flask_mail import Message
 import flask_login
 
 from blueprints.models import \
@@ -11,14 +12,22 @@ from blueprints.models import \
     History, \
     ParticipantExtraInfo
 
-from operator import attrgetter
 from datetime import datetime, timedelta
 from json import dumps as to_json_string
 from json import loads as parse_json
-from collections import defaultdict
 
 
 solution_reviews_blueprint = Blueprint('solution_reviews', __name__, template_folder='templates')
+
+
+def notify_user(user_id, problem_id, status):
+    email = db.session.query(User.email).filter(User.id == user_id).scalar()
+    msg = Message(subject=f'Дискретные структуры: дорешка задачи #{problem_id}',
+                  body=
+f'''{status}
+Данное письмо выслано автоматически. Пожалуйста, не отвечайте на него. При необходимости напишите лично проверяющему.''',
+                  recipients=[email])
+    current_app.config['MAILER'].send(msg)
 
 
 @solution_reviews_blueprint.route('/course-<int:course_id>/solution_reviews/', methods=['GET', 'POST'])
@@ -112,8 +121,18 @@ def view_solution_review_requests(course_id):
             ps = ProblemStatus.query.filter_by(user_id=h.user_id, problem_id=h.problem_id).first()
             ps.status_id = status_id
             ps.timestamp_last_changed = datetime.now()
+            notify_user(
+                h.user_id,
+                h.problem_id,
+                f'Решение зачтено с комментарием “{h.comment}”'
+            )
         elif action == 'send_for_revision':
             h.event = 'SENT_FOR_REVISION'
+            notify_user(
+                h.user_id,
+                h.problem_id,
+                f'Решение отправлено на доработку с комментарием “{h.comment}”. Крайний срок см. в личном кабинете.'
+            )
         else:
             abort(400)
 

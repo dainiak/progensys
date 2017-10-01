@@ -322,3 +322,16 @@ class History(db.Model):
 class SystemAdministrator(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     extra_info = db.Column(db.Text)
+
+#
+# class NotificationItem(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     code = db.String(80)
+#
+#
+# class Notification(db.Model):
+#     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+#     course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=True)
+#     notification_id = db.Column(db.Integer, db.ForeignKey('notification_item.id', ondelete='CASCADE'))
+#     notify_in_email = db.Column(db.Boolean)
+#     notify_in_app = db.Column(db.Boolean)
