@@ -188,6 +188,12 @@
                     sendCommand('change_deadline');
                 }
             });
+
+            $('button.predefined-comment').on('click', function(evt){
+                editor.setValue(evt.target.dataset.comment);
+            });
+
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
         });
     </script>
 {% endblock head %}
@@ -206,9 +212,16 @@
                         <div class="card-body">
                             <h4 class="h5">Доступные действия</h4>
                             <div class="form-group">
-                                <label for="commentArea">Опциональный комментарий, который увидит обучающийся (можно использовать LaTeX):</label>
+                                <label for="commentArea">Опциональный комментарий, который увидит обучающийся (можно использовать \(\LaTeX\), но формулы следует окружать не долларами, а так: <code>\(…\)</code>):</label>
                                 <textarea id="commentArea" class="form-control form-control-lg"></textarea>
-                                <label class="form-check-label"><input type="checkbox" class="form-check-input" id="notifyLearnerByEmail" checked="checked"></label>
+                                <label for="predefinedComments">Заготовленные комментарии:</label>
+                                <div class="btn-group" id="predefinedComments">
+                                    <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="См. комментарии на полях в скомпилированном PDF Вашего проекта на ShareLaTeX.">См. на полях.</button>
+                                    <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="Имеются ошибки компиляции. Прежде всего, исправьте их.">Ошибки компиляции</button>
+                                    <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="Есть корректные замечания авточекера, которые не были учтены перед отправкой решения на проверку.">Авточекер</button>
+                                </div>
+
+                                <label class="form-check-label"><input type="checkbox" class="form-check-input" id="notifyLearnerByEmail" checked="checked"> Оповестить обучающегося по электронной почте</label>
                             </div>
                             <div class="btn-group">
                                 <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> ShareLaTeX</a>
