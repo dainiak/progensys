@@ -102,10 +102,17 @@ def view_solution_review_requests(course_id):
                 'SOLUTION_ACCEPTED': 'Решение зачтено'
             }
 
-            return jsonify(history=[
-                f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]} с комментарием “{(comment or "").strip()}”'
-                for event, comment, timestamp in review_history
-            ])
+            history = []
+            for event, comment, timestamp in review_history:
+                if comment and comment.strip():
+                    comment = latex_to_html(comment)
+                    history.append(
+                        f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]} с комментарием “{comment}”'
+                    )
+                else:
+                    history.append(f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]}')
+
+            return jsonify(history=history)
 
         grader_username = flask_login.current_user.username
         h = History()
