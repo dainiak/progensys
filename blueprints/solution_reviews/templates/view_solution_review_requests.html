@@ -144,7 +144,8 @@
                         problem_id: currentItem.problem_id,
                         course_id: {{ course_id }},
                         comment: editor.getValue(),
-                        deadline: currentItem.deadline
+                        deadline: currentItem.deadline,
+                        notify_learner: $('#notifyLearnerByEmail').is(":checked")
                     })
                 }).done(function (response) {
                     $.toaster({
@@ -207,6 +208,7 @@
                             <div class="form-group">
                                 <label for="commentArea">Опциональный комментарий, который увидит обучающийся (можно использовать LaTeX):</label>
                                 <textarea id="commentArea" class="form-control form-control-lg"></textarea>
+                                <label class="form-check-label"><input type="checkbox" class="form-check-input" id="notifyLearnerByEmail" checked="checked"></label>
                             </div>
                             <div class="btn-group">
                                 <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> ShareLaTeX</a>

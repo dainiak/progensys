@@ -121,23 +121,28 @@ def view_solution_review_requests(course_id):
             ps = ProblemStatus.query.filter_by(user_id=h.user_id, problem_id=h.problem_id).first()
             ps.status_id = status_id
             ps.timestamp_last_changed = datetime.now()
-            notify_user(
-                h.user_id,
-                h.problem_id,
-                f'Решение зачтено с комментарием “{h.comment}”'
-            )
         elif action == 'send_for_revision':
             h.event = 'SENT_FOR_REVISION'
-            notify_user(
-                h.user_id,
-                h.problem_id,
-                f'Решение отправлено на доработку с комментарием “{h.comment}”. Крайний срок см. в личном кабинете.'
-            )
         else:
             abort(400)
 
         db.session.add(h)
         db.session.commit()
+
+        if json.get('notify_learner'):
+            if action == 'accept_solution':
+                notify_user(
+                    h.user_id,
+                    h.problem_id,
+                    f'Решение зачтено с комментарием “{h.comment}”'
+                )
+            elif action == 'send_for_revision':
+                notify_user(
+                    h.user_id,
+                    h.problem_id,
+                    f'Решение отправлено на доработку с комментарием “{h.comment}”. Крайний срок см. в личном кабинете.'
+                )
+
         return jsonify(result='Изменения успешно сохранены')
 
     if current_user_role not in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
