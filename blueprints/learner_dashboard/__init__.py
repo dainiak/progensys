@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from json import loads as parse_json
 
+from text_tools import latex_to_html
 
 learner_dashboard_blueprint = Blueprint('learner_dashboard', __name__, template_folder='templates')
 
@@ -208,7 +209,7 @@ def view_learner_dashboard(course_id, user_id=None):
             'problem_id': problem_id,
             'review_status': review_status,
             'submission_allowed': submission_allowed,
-            'reviewer_comment': reviewer_comment
+            'reviewer_comment': latex_to_html(reviewer_comment)
         })
 
     sharelatex_project_id = None

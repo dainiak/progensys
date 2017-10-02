@@ -16,6 +16,8 @@ from datetime import datetime, timedelta
 from json import dumps as to_json_string
 from json import loads as parse_json
 
+from text_tools import latex_to_html
+
 
 solution_reviews_blueprint = Blueprint('solution_reviews', __name__, template_folder='templates')
 
@@ -134,13 +136,13 @@ def view_solution_review_requests(course_id):
                 notify_user(
                     h.user_id,
                     h.problem_id,
-                    f'Решение зачтено с комментарием “{h.comment}”'
+                    f'Решение зачтено с комментарием “{latex_to_html(h.comment)}”'
                 )
             elif action == 'send_for_revision':
                 notify_user(
                     h.user_id,
                     h.problem_id,
-                    f'Решение отправлено на доработку с комментарием “{h.comment}”. Крайний срок см. в личном кабинете.'
+                    f'Решение отправлено на доработку с комментарием “{latex_to_html(h.comment)}”. Крайний срок см. в личном кабинете.'
                 )
 
         return jsonify(result='Изменения успешно сохранены')

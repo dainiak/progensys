@@ -19,6 +19,8 @@ $(function(){
                 course_id: {{ course_id }}
             })
         }).done(function (response) {
+            $(evt.target).prop('disabled', true).text('(Запрос отправлен)');
+
             $.toaster({
                 message : response.result.toString(),
                 priority : 'success'
@@ -145,7 +147,7 @@ $(function(){
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
                         <td>{{ item.review_status | safe }}</td>
                         <td>{% if item.submission_allowed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
-                        <td>{{ item.reviewer_comment }}</td>
+                        <td>{{ item.reviewer_comment | safe }}</td>
                     </tr>{% endfor %}</tbody>
                 </table>
                 </div>
