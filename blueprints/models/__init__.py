@@ -335,3 +335,10 @@ class SystemAdministrator(db.Model):
 #     notification_id = db.Column(db.Integer, db.ForeignKey('notification_item.id', ondelete='CASCADE'))
 #     notify_in_email = db.Column(db.Boolean)
 #     notify_in_app = db.Column(db.Boolean)
+
+class ExtraData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=True)
+    key = db.Column(db.String(80), nullable=False)
+    value = db.Column(db.UnicodeText)

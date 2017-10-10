@@ -17,7 +17,7 @@ from blueprints.models import \
     TrajectoryContent, \
     ProblemTopicAssignment, \
     History, \
-    ParticipantExtraInfo, \
+    ExtraData, \
     User
 
 from datetime import datetime, timedelta
@@ -212,14 +212,14 @@ def view_learner_dashboard(course_id, user_id=None):
             'reviewer_comment': latex_to_html(reviewer_comment)
         })
 
-    sharelatex_project_id = None
-    extra_info = db.session.query(ParticipantExtraInfo.json).filter(
-        ParticipantExtraInfo.course_id == course_id,
-        ParticipantExtraInfo.user_id == user_id
+    sharelatex_project_id = db.session.query(
+        ExtraData.value
+    ).filter(
+        ExtraData.user_id == user_id,
+        ExtraData.course_id == course_id,
+        ExtraData.key == 'sharelatex_project_id'
     ).first()
-    if extra_info and extra_info[0]:
-        extra_info = parse_json(extra_info[0])
-        sharelatex_project_id = extra_info.get('sharelatex_project_id')
+    sharelatex_project_id = sharelatex_project_id and sharelatex_project_id[0]
 
     return render_template(
         'view_learner_dashboard.html',

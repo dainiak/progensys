@@ -10,7 +10,7 @@ from blueprints.models import \
     ProblemStatusInfo, \
     ProblemStatus, \
     History, \
-    ParticipantExtraInfo
+    ExtraData
 
 from datetime import datetime, timedelta
 from json import dumps as to_json_string
@@ -27,7 +27,7 @@ def notify_user(user_id, problem_id, status):
     msg = Message(subject=f'Дискретные структуры: дорешка задачи #{problem_id}',
                   body=
 f'''{status}
-Данное письмо выслано автоматически. Пожалуйста, не отвечайте на него. При необходимости напишите лично проверяющему.''',
+Письмо сформировано автоматически; пожалуйста, не отвечайте на него. При необходимости напишите лично проверяющему.''',
                   recipients=[email])
     current_app.config['MAILER'].send(msg)
 
@@ -199,14 +199,14 @@ def view_solution_review_requests(course_id):
         elif user_problem_history.event == 'TAKEN_FOR_REVIEW':
             review_status = 'Взято на проверку ({}, {}).'.format(user_problem_history.comment, event_date)
 
-        sharelatex_project_id = None
-        extra_info = db.session.query(ParticipantExtraInfo.json).filter(
-            ParticipantExtraInfo.course_id == course_id,
-            ParticipantExtraInfo.user_id == user_id
+        sharelatex_project_id = db.session.query(
+            ExtraData.value
+        ).filter(
+            ExtraData.user_id == user_id,
+            ExtraData.course_id == course_id,
+            ExtraData.key == 'sharelatex_project_id'
         ).first()
-        if extra_info and extra_info[0]:
-            extra_info = parse_json(extra_info[0])
-            sharelatex_project_id = extra_info.get('sharelatex_project_id')
+        sharelatex_project_id = sharelatex_project_id and sharelatex_project_id[0]
 
         review_requests.append({
             'user_id': user_id,

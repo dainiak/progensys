@@ -3,6 +3,7 @@ import flask_login
 from flask_mail import Message
 
 from json import dumps as dump_json
+from json import loads as load_json
 import random
 from datetime import datetime
 
@@ -21,7 +22,8 @@ from blueprints.models import \
     GroupMembership, \
     ParticipantExtraInfo, \
     SystemAdministrator, \
-    Problem
+    Problem, \
+    ExtraData
 
 migration_tools_blueprint = Blueprint('migration_tools', __name__, template_folder='templates')
 
@@ -131,4 +133,20 @@ f'''Ваше имя пользователя для входа в систему
             db.session.commit()
             return 'Запрос выполнен успешно. Просмотрено {} задач.'.format(n)
 
+        elif user_request == 'move_sharelatex_url_to_extra_data':
+            for epi in ParticipantExtraInfo.query.all():
+                parsed_json = load_json(epi.json)
+                if parsed_json:
+                    for key in parsed_json:
+                        ed = ExtraData()
+                        ed.user_id = epi.user_id
+                        ed.course_id = epi.course_id
+                        ed.key = key
+                        ed.value = str(parsed_json[key])
+                        db.session.add(ed)
+
+            db.session.commit()
+            return 'Запрос выполнен успешно.'
+
         return 'Запрос не распознан'
+
