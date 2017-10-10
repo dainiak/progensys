@@ -20,7 +20,6 @@ from blueprints.models import \
     Role, \
     User, \
     GroupMembership, \
-    ParticipantExtraInfo, \
     SystemAdministrator, \
     Problem, \
     ExtraData
@@ -82,14 +81,6 @@ def interface():
             db.session.commit()
             return 'Распределение по группам выполнено'
 
-        elif user_request == 'add_extra_participant_info':
-            course_id = json_data.get('course_id')
-            for item in json_data.get('data'):
-                user_id = User.query.filter_by(username=item['username']).first().id
-                pef = ParticipantExtraInfo(user_id, course_id, dump_json(item['extra_participant_info']))
-                db.session.add(pef)
-            db.session.commit()
-            return 'Данные внесены успешно'
         elif user_request == 'recover_password':
             if 'usernames' not in json_data:
                 return 'Error'
@@ -133,18 +124,23 @@ f'''Ваше имя пользователя для входа в систему
             db.session.commit()
             return 'Запрос выполнен успешно. Просмотрено {} задач.'.format(n)
 
-        elif user_request == 'move_sharelatex_url_to_extra_data':
-            for epi in ParticipantExtraInfo.query.all():
-                parsed_json = load_json(epi.json)
-                if parsed_json:
-                    for key in parsed_json:
-                        ed = ExtraData()
-                        ed.user_id = epi.user_id
-                        ed.course_id = epi.course_id
-                        ed.key = key
-                        ed.value = str(parsed_json[key])
-                        db.session.add(ed)
-
+        elif user_request == 'assign_time_points':
+            course_id = json_data.get('course_id')
+            if not course_id:
+                return 'Не указан курс'
+            for user_id, in db.session.query(
+                        Participant.user_id
+                    ).filter(
+                        Participant.course_id == course_id,
+                        Participant.role_id == Role.id,
+                        Role.code == 'LEARNER'
+                    ).all():
+                ed = ExtraData()
+                ed.user_id = user_id
+                ed.course_id = course_id
+                ed.key = 'time_points'
+                ed.value = '100'
+                db.session.add(ed)
             db.session.commit()
             return 'Запрос выполнен успешно.'
 

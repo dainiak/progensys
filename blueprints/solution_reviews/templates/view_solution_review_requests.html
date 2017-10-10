@@ -102,6 +102,7 @@
                         + currentItem.problem_id
                     );
 
+                    $('#takeActionModal .time-points').text(currentItem.time_points || '');
                     $('#takeActionModal .history').text('Идёт загрузка истории…');
                     $('#takeActionModal').modal('show');
                     editor.setValue('');
@@ -234,6 +235,7 @@
                     </div>
                     <div class="card">
                         <div class="card-body">
+                            <h5 class="card-title">Обучающийся имеет <span class="time-points"></span> time points</h5>
                             <h5 class="card-title">История дорешки</h5>
                             <p class="card-text history"></p>
                         </div>

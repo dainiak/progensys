@@ -146,7 +146,7 @@ $(function(){
                     <tbody>{% for item in revisions %}<tr>
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
                         <td>{{ item.review_status | safe }}</td>
-                        <td>{% if item.submission_allowed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% endif %}</td>
+                        <td>{% if item.waiting_for_submission %}{% if not item.deadline_passed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% else %}<strong>Стандартный срок отправки решения истёк. Свяжитесь с преподавателем по почте и используйте свои time points.</strong>{% endif %}{% endif %}</td>
                         <td>{{ item.reviewer_comment | safe }}</td>
                     </tr>{% endfor %}</tbody>
                 </table>

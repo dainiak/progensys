@@ -187,13 +187,15 @@ def view_learner_dashboard(course_id, user_id=None):
         reviewer_comment = ''
 
         time_left_for_submission = (user_problem_history.datetime + timedelta(days=10)) - datetime.now()
+        deadline_passed = time_left_for_submission < timedelta(0)
         if time_left_for_submission.total_seconds() < 7200:
-            n_minutes =  int(time_left_for_submission.total_seconds() / 60)
+            n_minutes = int(time_left_for_submission.total_seconds() / 60)
             time_left_info = f'На отправку решения на проверку осталось менее {n_minutes} <strong>минут</strong>.'
         else:
             n_hours = int(time_left_for_submission.total_seconds() / 3600)
             time_left_info = f'На отправку решения на проверку осталось менее {n_hours} часов.'
-        submission_allowed = time_left_for_submission > timedelta(0)
+
+        waiting_for_submission = True
 
         if user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
             review_status = f'Задача была отправлена на дорешку в ходе проверки выдачи {event_date}. {time_left_info}'
@@ -202,14 +204,15 @@ def view_learner_dashboard(course_id, user_id=None):
             review_status = f'Решение было отправлено проверяющим на корректировку {event_date}. {time_left_info}'
             reviewer_comment = user_problem_history.comment
         elif user_problem_history.event == 'LEARNER_SENT_REVIEW_REQUEST':
-            submission_allowed = False
+            waiting_for_submission = False
             review_status = f'Ваше решение находится на проверке с {event_date}.'
 
         revisions.append({
             'problem_id': problem_id,
             'review_status': review_status,
-            'submission_allowed': submission_allowed,
-            'reviewer_comment': latex_to_html(reviewer_comment)
+            'waiting_for_submission': waiting_for_submission,
+            'reviewer_comment': latex_to_html(reviewer_comment),
+            'deadline_passed': deadline_passed
         })
 
     sharelatex_project_id = db.session.query(
@@ -221,6 +224,15 @@ def view_learner_dashboard(course_id, user_id=None):
     ).first()
     sharelatex_project_id = sharelatex_project_id and sharelatex_project_id[0]
 
+    time_points = db.session.query(
+        ExtraData.value
+    ).filter(
+        ExtraData.user_id == user_id,
+        ExtraData.course_id == course_id,
+        ExtraData.key == 'time_points'
+    ).first()
+    time_points = time_points and time_points[0]
+
     return render_template(
         'view_learner_dashboard.html',
         exposures=exposures,
@@ -231,5 +243,5 @@ def view_learner_dashboard(course_id, user_id=None):
         sharelatex_project_id=sharelatex_project_id,
         instructor_mode=instructor_mode,
         username=username,
-        time_points_left=100
+        time_points_left=time_points
     )

@@ -47,17 +47,6 @@ class Participant(db.Model):
         self.role_id = role_id
 
 
-class ParticipantExtraInfo(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
-    json = db.Column(db.UnicodeText)
-
-    def __init__(self, user_id, course_id, json):
-        self.user_id = user_id
-        self.course_id = course_id
-        self.json = json
-
-
 class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(100))

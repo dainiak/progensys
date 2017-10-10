@@ -208,13 +208,23 @@ def view_solution_review_requests(course_id):
         ).first()
         sharelatex_project_id = sharelatex_project_id and sharelatex_project_id[0]
 
+        time_points = db.session.query(
+            ExtraData.value
+        ).filter(
+            ExtraData.user_id == user_id,
+            ExtraData.course_id == course_id,
+            ExtraData.key == 'time_points'
+        ).first()
+        time_points = time_points and time_points[0]
+
         review_requests.append({
             'user_id': user_id,
             'user_name': '{} {}'.format(name_last, name_first),
             'problem_id': problem_id,
             'review_status': review_status,
             'deadline_passed': deadline_passed,
-            'sharelatex_project_id': sharelatex_project_id
+            'sharelatex_project_id': sharelatex_project_id,
+            'time_points': time_points
         })
 
     return render_template(
