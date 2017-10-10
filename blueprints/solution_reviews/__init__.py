@@ -66,6 +66,41 @@ def view_solution_review_requests(course_id):
 
         if json.get('action') == 'submit_for_review':
             json = request.get_json()
+
+            datetime_last_sent_for_revision, = db.session.query(History.datetime).filter(
+                History.problem_id == json.get('problem_id'),
+                History.user_id == user_id,
+                History.event.in_([
+                    'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING',
+                    'SENT_FOR_REVISION',
+                    'LEARNER_SENT_REVIEW_REQUEST'
+                ])
+            ).order_by(
+                History.datetime.desc()
+            ).first()
+            days_left_for_submission = (datetime_last_sent_for_revision + timedelta(days=10) - datetime.now()).total_seconds() / (3600 * 24)
+            if days_left_for_submission < 0:
+                time_points_data = ExtraData.query.filter(
+                    ExtraData.user_id == user_id,
+                    ExtraData.course_id == course_id,
+                    ExtraData.key == 'time_points'
+                ).first()
+
+                time_points = int(time_points_data.value) if time_points_data else 0
+
+                if time_points > -days_left_for_submission:
+                    time_points += int(days_left_for_submission)
+                    time_points_data.value = str(time_points)
+                    h = History()
+                    h.user_id = user_id
+                    h.problem_id = json.get('problem_id')
+                    h.datetime = datetime.now()
+                    h.event = 'ALTERED_USER_TIMEPOINTS'
+                    h.comment = str(int(days_left_for_submission))
+                    db.session.add(h)
+                else:
+                    return jsonify(result='Недостаточно time points для отправки запроса.')
+
             h = History()
             h.user_id = user_id
             h.problem_id = json.get('problem_id')

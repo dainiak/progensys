@@ -121,7 +121,7 @@ $(function(){
         <div class="card">
             <a class="h4 card-header" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
             <div class="card-body collapse" id="solutionRevisions">
-                <h5 class="card-block card-title h5">Ваши time points: {{ time_points_left }} <i class="fa fa-clock-o"></i></h5>
+                <h5 class="card-block card-title h5">Ваши time points: {{ time_points }} <i class="fa fa-clock-o"></i></h5>
 
                 <div class="card-block">
                 <h5 class="card-title h5">Полезные ссылки</h5>
@@ -146,7 +146,7 @@ $(function(){
                     <tbody>{% for item in revisions %}<tr>
                         <td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>
                         <td>{{ item.review_status | safe }}</td>
-                        <td>{% if item.waiting_for_submission %}{% if not item.deadline_passed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% else %}<strong>Стандартный срок отправки решения истёк. Свяжитесь с преподавателем по почте и используйте свои time points.</strong>{% endif %}{% endif %}</td>
+                        <td>{% if item.waiting_for_submission %}{% if not item.deadline_passed %}<button class="btn btn-outline-secondary btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку</button>{% else %}<button class="btn btn-outline-danger btn-submit-for-review" data-problem-id="{{ item.problem_id }}">запросить проверку, заплатив time points за просрочку</button>{% endif %}{% endif %}</td>
                         <td>{{ item.reviewer_comment | safe }}</td>
                     </tr>{% endfor %}</tbody>
                 </table>
