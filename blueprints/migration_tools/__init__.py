@@ -144,5 +144,21 @@ f'''Ваше имя пользователя для входа в систему
             db.session.commit()
             return 'Запрос выполнен успешно.'
 
+        elif user_request == 'add_extra_data':
+            course_id = json_data.get('course_id')
+
+            if not course_id:
+                return 'Не указан курс'
+            for datum in json_data['data']:
+                ed = ExtraData()
+                ed.course_id = course_id
+                ed.user_id = datum['user_id']
+                ed.key = datum['key']
+                ed.value = datum['value']
+                db.session.add(ed)
+
+            db.session.commit()
+            return 'Запрос выполнен успешно.'
+
         return 'Запрос не распознан'
 
