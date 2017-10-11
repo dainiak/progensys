@@ -95,7 +95,7 @@
         <div class="problem-set-extra">{{ content.extra_content | safe }}</div>
         {% elif content.problem_id %}
         <div class="problem-statement">
-        \(\mathbf{ { {{ content.problem_number }} }_{( {{ content.problem_id }} )}.}\)
+        \(\mathbf{ { {{ content.problem_number }} }_{( {{ content.problem_id }} )}{% if content.problem_level %}^{[ {{ content.problem_level }} ]}{% endif %}.}\)
         {{ content.problem_statement | safe }}
         </div>
         {% endif %}

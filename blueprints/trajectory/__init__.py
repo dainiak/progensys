@@ -7,7 +7,8 @@ from blueprints.models import \
     Participant, \
     Role, \
     TrajectoryContent, \
-    Trajectory
+    Trajectory, \
+    TopicLevelAssignment
 
 trajectory_blueprint = Blueprint('trajectory', __name__, template_folder='templates')
 
@@ -22,19 +23,22 @@ def api_trajectory():
     trajectory_id = json['trajectory_id']
     action = json['action']
 
-    if not db.session.query(
-                Participant
-            ).filter(
-                Participant.user_id == flask_login.current_user.id,
-                Participant.course_id == Trajectory.course_id,
-                Trajectory.id == trajectory_id,
-                Participant.role_id == Role.id,
-                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
-            ).first():
+    course_id = db.session.query(
+        Participant.course_id
+    ).filter(
+        Participant.user_id == flask_login.current_user.id,
+        Participant.course_id == Trajectory.course_id,
+        Trajectory.id == trajectory_id,
+        Participant.role_id == Role.id,
+        Role.code.in_(['ADMIN', 'INSTRUCTOR'])
+    ).first()
+
+    if not course_id:
         abort(403)
+    course_id = course_id[0]
 
     if action == 'load':
-        data = sorted(db.session.query(
+        data = db.session.query(
             TrajectoryContent.sort_key,
             TrajectoryContent.id,
             TrajectoryContent.topic_id,
@@ -42,14 +46,25 @@ def api_trajectory():
         ).filter(
             TrajectoryContent.trajectory_id == trajectory_id,
             Topic.id == TrajectoryContent.topic_id
+        ).order_by(
+            TrajectoryContent.sort_key
+        ).all()
+
+        topic_levels = dict(db.session.query(
+            TopicLevelAssignment.topic_id,
+            TopicLevelAssignment.level
+        ).filter(
+            TopicLevelAssignment.course_id == course_id
         ).all())
+
         result = []
         for sort_key, item_id, topic_id, topic_code in data:
             result.append({
                 'sort_key': sort_key,
                 'id': item_id,
                 'topic_id': topic_id,
-                'topic_code': topic_code
+                'topic_code': topic_code,
+                'topic_level': topic_levels.get(topic_id)
             })
 
         return jsonify(result)
@@ -79,15 +94,33 @@ def api_trajectory():
         sort_key = json.get('sort_key')
         topic_id = json.get('topic_id')
         topic_code = json.get('topic_code')
+        topic_level = json.get('topic_level')
         if not topic_code:
             topic_code = Topic.query.filter_by(id=topic_id).first().code
         elif not topic_id:
             topic_id = Topic.query.filter_by(code=topic_code).first().id
+        if topic_level:
+            tla = TopicLevelAssignment.query.filter(
+                TopicLevelAssignment.course_id == course_id,
+                TopicLevelAssignment.topic_id == topic_id
+            ).first()
+            if not tla:
+                tla = TopicLevelAssignment(course_id, topic_id, topic_level)
+                db.session.add(tla)
+            else:
+                tla.level = topic_level
+
         tc = TrajectoryContent(trajectory_id, topic_id, sort_key)
         db.session.add(tc)
         db.session.commit()
 
-        return jsonify(id=tc.id, topic_id=tc.topic_id, topic_code=topic_code, sort_key=tc.sort_key)
+        return jsonify(
+            id=tc.id,
+            topic_id=tc.topic_id,
+            topic_code=topic_code,
+            sort_key=tc.sort_key,
+            topic_level=topic_level
+        )
 
     elif json['action'] == 'update':
         if not json.get('id'):
@@ -105,11 +138,30 @@ def api_trajectory():
         tc = TrajectoryContent.query.filter_by(trajectory_id=json['trajectory_id'], id=json['id']).first()
         if not tc:
             abort(400, 'Specified item not found or does not belong to the trajectory')
+
+        topic_level = json.get('topic_level')
+        if topic_level:
+            tla = TopicLevelAssignment.query.filter(
+                TopicLevelAssignment.course_id == course_id,
+                TopicLevelAssignment.topic_id == topic_id
+            ).first()
+            if not tla:
+                tla = TopicLevelAssignment(course_id, topic_id, topic_level)
+                db.session.add(tla)
+            else:
+                tla.level = topic_level
+
         tc.topic_id = topic_id
         tc.sort_key = sort_key
         db.session.commit()
 
-        return jsonify(id=tc.id, topic_id=tc.topic_id, topic_code=topic_code, sort_key=tc.sort_key)
+        return jsonify(
+            id=tc.id,
+            topic_id=tc.topic_id,
+            topic_code=topic_code,
+            sort_key=tc.sort_key,
+            topic_level=topic_level
+        )
 
     elif json['action'] == 'delete':
         if not json.get('id'):

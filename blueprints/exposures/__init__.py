@@ -24,7 +24,8 @@ from blueprints.models import \
     GroupMembership, \
     Group, \
     ProblemSetExtra, \
-    History
+    History, \
+    TopicLevelAssignment
 
 
 from datetime import datetime
@@ -159,10 +160,22 @@ def print_exposure(course_id, exposure_string):
                     Problem.id == ProblemSetContent.problem_id,
                     ProblemSetContent.problem_set_id == problem_set_id
                 ).all():
+
+            problem_level = db.session.query(
+                TopicLevelAssignment.level
+            ).filter(
+                TopicLevelAssignment.course_id == course_id,
+                TopicLevelAssignment.topic_id == ProblemTopicAssignment.topic_id,
+                ProblemTopicAssignment.problem_id == problem_id
+            ).first()
+            if problem_level:
+                problem_level = problem_level[0]
+
             results[-1]['problem_set_content'].append({
                 'sort_key': sort_key,
                 'problem_id': problem_id,
-                'problem_statement': process_problem_statement(problem_statement)
+                'problem_statement': process_problem_statement(problem_statement),
+                'problem_level': problem_level
             })
         for sort_key, extra_content in db.session.query(
                     ProblemSetExtra.sort_key,
@@ -483,6 +496,14 @@ def new_exposure():
             set()
         )
 
+        topic_levels = dict(db.session.query(
+            TopicLevelAssignment.topic_id,
+            TopicLevelAssignment.level
+        ).filter(
+            TopicLevelAssignment.course_id == course_id,
+            TopicLevelAssignment.topic_id.in_(topic_ids)
+        ).all())
+
         problem_ids = set()
         problems_by_topic = defaultdict(set)
         for pta in ProblemTopicAssignment.query.filter(
@@ -529,6 +550,7 @@ def new_exposure():
         penalty_for_giving_clone_of_exposed_problem = 1
         penalty_for_giving_clones = 10
         penalty_for_having_underflow = 1000
+        penalty_for_including_harder_topic_while_leaving_out_easier = 100
         max_problems_per_user = int(request.args.get('max', 5))
 
         lp = LpProblem(name='Test Generation', sense=LpMinimize)
@@ -611,19 +633,33 @@ def new_exposure():
             )
             lp_objective += penalty_for_having_underflow * lp_underflow_variable
 
+            lp_vars_user_topic = dict()
+            num_occurrences_of_topic_in_remaining_trajectory = defaultdict(int)
+
             # Number of problems for each topic should not exceed the number required by the trajectory
             for topic_id in set(user_remaining_trajectory_topics):
+                num_occurrences_of_topic_in_remaining_trajectory[topic_id] = sum(
+                    1
+                    for i in user_remaining_trajectory_topics if i == topic_id
+                )
+
+                lp_vars_user_topic[(user_id,topic_id)] = LpVariable(
+                    'user_topic_{}_{}'.format(user_id, topic_id)
+                )
+
                 lp += (
                     sum(
                         lp_vars_user_problem[(user_id, problem_id)]
                         for problem_id in problems_by_topic[topic_id] & problems_available_for_user
-                    )
-                    <=
-                    sum(
-                        1
-                        for i in user_remaining_trajectory_topics if i == topic_id
-                    )
+                    ) == lp_vars_user_topic[(user_id,topic_id)]
                 )
+
+                lp += (
+                    lp_vars_user_topic[(user_id,topic_id)]
+                    <=
+                    num_occurrences_of_topic_in_remaining_trajectory[topic_id]
+                )
+
 
             # Introduce penalty for giving clones at the same time
             family_of_clone_sets = list()
@@ -679,7 +715,58 @@ def new_exposure():
                     lp_vars_user_problem[(user_id, problem_id)]
                 )
 
-            lp.setObjective(lp_objective)
+            # Introduce penalty for giving problems on topics that were downvoted by the user
+            # and/or are hard while there are some easier/upvoted topics left out of exposure
+            topics_having_levels = set(user_remaining_trajectory_topics) & set(topic_levels.keys())
+            active_levels = sorted(set(map(topic_levels.get, topics_having_levels)))
+            lp_vars_level_fulfilled = dict()
+            lp_var_including_harder_topic_while_leaving_out_easier = LpVariable(
+                'user_including_harder_topic_while_leaving_out_easier_{}'.format(user_id),
+                cat='Binary',
+            )
+            for i, level in enumerate(active_levels):
+                topics_of_current_level = \
+                    set(user_remaining_trajectory_topics) \
+                    & set(
+                        topic_id
+                        for topic_id, topic_level in topic_levels.items()
+                        if topic_level == level
+                    )
+
+                lp_vars_level_fulfilled[(user_id, level)] = LpVariable(
+                    'user_level_fulfilled_{}_{}'.format(user_id, level),
+                    cat='Binary'
+                )
+
+                for topic_id in topics_of_current_level:
+                    lp += (
+                        lp_vars_level_fulfilled[(user_id, level)]
+                        *
+                        num_occurrences_of_topic_in_remaining_trajectory[topic_id]
+                        <=
+                        lp_vars_user_topic[(user_id, topic_id)]
+                    )
+
+                    if i > 0:
+                        lp += (
+                            lp_vars_user_topic[(user_id, topic_id)]
+                            <=
+                            num_occurrences_of_topic_in_remaining_trajectory[topic_id]
+                            *
+                            lp_vars_level_fulfilled[(user_id, active_levels[i-1])]
+                            +
+                            num_occurrences_of_topic_in_remaining_trajectory[topic_id]
+                            *
+                            lp_var_including_harder_topic_while_leaving_out_easier
+                        )
+
+            lp_objective += (
+                penalty_for_including_harder_topic_while_leaving_out_easier
+                *
+                lp_var_including_harder_topic_while_leaving_out_easier
+            )
+
+        lp.setObjective(lp_objective)
 
         try:
             lp.solve()
@@ -689,7 +776,7 @@ def new_exposure():
             )
         except:
             log_info = 'Failed to solve the linear program'
-            return jsonify(error='Failed to solve the linear program')
+            return jsonify(error='Failed to solve the linear program', program=str(lp))
 
         problem_sets = defaultdict(list)
         for user_id, problem_id in lp_vars_user_problem:

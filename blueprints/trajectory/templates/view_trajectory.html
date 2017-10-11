@@ -62,6 +62,12 @@
                     }
                 },
                 {
+                    title: "уровень сложности",
+                    name: "topic_level",
+                    type: "number",
+                    filtering: false
+                },
+                {
                     type: "control",
                     modeSwitchButton: false,
                     editButton: true,
@@ -106,6 +112,7 @@
                                 topic_id: item.topic_id,
                                 topic_code: item.topic_code,
                                 sort_key: item.sort_key,
+                                topic_level: item.topic_level,
                                 trajectory_id: {{ trajectory_id }}
                             })
                         }).done(function () {
@@ -131,6 +138,7 @@
                                 id: item.id,
                                 topic_code: item.topic_code,
                                 sort_key: item.sort_key,
+                                topic_level: item.topic_level,
                                 trajectory_id: {{ trajectory_id }}
                             })
                         }).done(function() {
