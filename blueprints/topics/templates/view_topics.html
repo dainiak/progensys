@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}Работа с темами{% endblock %}
+{% block head %}
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/mode-latex.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/theme-chrome.js"></script>
+
+    <script src="/static/js/jquery.toaster.js"></script>
+
+    <script>
+        $(function () {
+            var fields = [
+                {
+                    title: "ID",
+                    name: "id",
+                    type: "number",
+                    readOnly: true,
+                    width: 5
+                },
+                {
+                    title: "код",
+                    name: "code",
+                    type: "text"
+                },
+                {
+                    title: "название",
+                    name: "title",
+                    type: "text"
+                },
+                {
+                    title: "комментарий",
+                    name: "comment",
+                    type: "text"
+                },
+                {
+                    type: "control",
+                    modeSwitchButton: false,
+                    editButton: true,
+                    width: 5
+                }
+            ];
+
+            $("#jsGrid").jsGrid({
+                width: "100%",
+                height: "auto",
+                heading: true,
+                filtering: true,
+                sorting: true,
+                inserting: true,
+                editing: true,
+                autoload: true,
+                noDataContent: "Данных не найдено.",
+                fields: fields,
+                controller: {
+                    loadData: function (filter) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/topic",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'load',
+                                filter: filter
+                            })
+                        });
+                    },
+                    deleteItem: function (item) {
+                          return $.ajax({
+                            type: "POST",
+                            url: "/api/topic",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'delete',
+                                item: item
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message : 'Набор задач обновлён',
+                                priority : 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message : 'Не удалось удалить задачу из набора',
+                                priority : 'danger'
+                            });
+                        });
+                    },
+                    updateItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/topic",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'update',
+                                item: item
+                            })
+                        }).done(function () {
+                            $.toaster({
+                                message: 'Изменения сохранены',
+                                priority: 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message: 'Не удалось сохранить изменения',
+                                priority: 'danger'
+                            });
+                        });
+                    },
+                    insertItem: function (item) {
+                        return $.ajax({
+                            type: "POST",
+                            url: "/api/topic",
+                            contentType: "application/json",
+                            dataType: "json",
+                            data: JSON.stringify({
+                                action: 'insert',
+                                item: item
+                            })
+                        }).done(function (response) {
+                            $.toaster({
+                                message: 'Изменения сохранены' + response.problem_id.toString(),
+                                priority: 'success'
+                            });
+                        }).fail(function () {
+                            $.toaster({
+                                message: 'Не удалось сохранить изменения',
+                                priority: 'danger'
+                            });
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock head %}
+
+{% block body %}
+    <div class="container-fluid">
+    <h1 class="h1">Редактирование тем</h1>
+    <div id="jsGrid" class="card"></div>
+    </div>
+{% endblock body %}

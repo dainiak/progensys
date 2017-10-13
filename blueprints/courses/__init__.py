@@ -65,35 +65,42 @@ def api_courses():
             abort(403)
         action_list = []
 
-        if role_code == 'ADMIN':
-            action_list.append({
-                'title': 'Управление участниками',
-                'url': url_for('courses.participant_management_view', course_id=course_id)
-            })
         if role_code in ['ADMIN', 'INSTRUCTOR']:
             action_list.append({
                 'title': 'Редактирование задач',
                 'url': url_for('problems.view_problems')
+            })
+        if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
+            action_list.append({
+                'title': 'Создать набор задач…',
+                'url': url_for('problem_sets.new_problem_set', course_id=course_id)
+            })
+
+        if role_code in ['ADMIN', 'INSTRUCTOR']:
+            action_list.append({
+                'title': 'Редактирование тем',
+                'url': url_for('topics.view_topics')
             })
         if role_code in ['ADMIN', 'INSTRUCTOR']:
             action_list.append({
                 'title': 'Управление траекториями',
                 'url': url_for('courses.view_course_trajectories', course_id=course_id)
             })
+
+        if role_code  in ['ADMIN', 'INSTRUCTOR']:
+            action_list.append({
+                'title': 'Список участников курса; генерация выдач',
+                'url': url_for('courses.participant_management_view', course_id=course_id)
+            })
         if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
             action_list.append({
-                'title': 'Произведённые выдачи',
+                'title': 'Просмотр произведённых выдач',
                 'url': url_for('exposures.view_exposures', course_id=course_id)
             })
         if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
             action_list.append({
                 'title': 'Работа с дорешками',
                 'url': url_for('solution_reviews.view_solution_review_requests', course_id=course_id)
-            })
-        if role_code in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
-            action_list.append({
-                'title': 'Создать набор задач…',
-                'url': url_for('problem_sets.new_problem_set', course_id=course_id)
             })
 
         if role_code == 'LEARNER':
