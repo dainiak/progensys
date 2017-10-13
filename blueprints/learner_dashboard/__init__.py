@@ -18,7 +18,8 @@ from blueprints.models import \
     ProblemTopicAssignment, \
     History, \
     ExtraData, \
-    User
+    User, \
+    TopicLevelAssignment
 
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -132,6 +133,13 @@ def view_learner_dashboard(course_id, user_id=None):
 
     user_problems_remaining_for_counting = set(user_problems_solved)
 
+    topic_levels = dict(db.session.query(
+        TopicLevelAssignment.topic_id,
+        TopicLevelAssignment.level
+    ).filter(
+        TopicLevelAssignment.course_id == course_id
+    ).all())
+
     trajectory = []
     for topic_id, topic_title, topic_code in db.session\
             .query(
@@ -158,6 +166,7 @@ def view_learner_dashboard(course_id, user_id=None):
         trajectory.append({
             'topic_id': topic_id,
             'topic_title': topic_title,
+            'topic_level': topic_levels.get(topic_id),
             'topic_code': topic_code,
             'problem_id': problem_id,
             'is_on_revision': problem_id in problems_on_revision

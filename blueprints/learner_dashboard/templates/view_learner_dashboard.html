@@ -79,7 +79,7 @@ $(function(){
             <a class="h4 card-header" href="https://goo.gl/2YQL5o" target="_blank"><i class="fa fa-external-link"></i> Справка по работе с информационной системой и дорешками</a>
         </div>{% endif %}
         <div class="card">
-            <a class="h4 card-header" data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a>
+            <a class="h4 card-header collapsed" data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a>
             <div class="card-body collapse" id="exposuresAndGrading">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
@@ -101,25 +101,26 @@ $(function(){
             </div>
         </div>
         <div class="card mt-3">
-            <a class="h4 card-header" data-toggle="collapse" href="#trajectoryProgress">Движение по траектории</a>
+            <a class="h4 card-header collapsed" data-toggle="collapse" href="#trajectoryProgress">Движение по траектории</a>
             <div class="card-body collapse" id="trajectoryProgress">
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
                         <tr><th></th>
                         <th>ID темы</th>
+                        <th>Уровень</th>
                         <th>название/код темы</th>
                         <th>Задача, закрывшая тему</th>
                         </tr>
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td><td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td>{% if item.topic_level %}<td>{% if item.topic_level == 1 %}<i class="fa fa-leaf"></i>{% elif item.topic_level == 2 %}<i class="fa fa-graduation-cap"></i>{% elif item.topic_level == 3 %}<i class="fa fa-trophy"></i>{% endif %}</td>{% else %}<td>?</td>{% endif %}<td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
          </div>
         <div class="card mt-3">
-            <a class="h4 card-header" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
+            <a class="h4 card-header collapsed" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
             <div class="card-body collapse" id="solutionRevisions">
                 <h5 class="card-block card-title h5">Ваши time points: {{ time_points }} <i class="fa fa-clock-o"></i></h5>
 
