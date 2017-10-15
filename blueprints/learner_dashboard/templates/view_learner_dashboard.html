@@ -3,6 +3,71 @@
 {% block head %}
 <script type="text/javascript">
 $(function(){
+    {% if instructor_mode %}
+    $('button.set-sharelatex-project-id').on('click', function(evt){
+        var sharelatex_project_id = window.prompt('Введите ID проекта на ShareLaTeX (24 символа)');
+        if(sharelatex_project_id === null)
+            return;
+        if(sharelatex_project_id.length != 24){
+            alert('Неверный формат ID проекта');
+            return;
+        }
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('courses.api_participants') }}",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({
+                action: 'change_extra_data',
+                course_id: {{ course_id }},
+                user_id: {{ user_id }},
+                key: 'sharelatex_project_id',
+                value: sharelatex_project_id
+            })
+        }).done(function (response) {
+            $.toaster({
+                message: response.result.toString(),
+                priority: 'success'
+            });
+        }).fail(function () {
+            $.toaster({
+                message: 'Не удалось сохранить изменения',
+                priority: 'danger'
+            });
+        });
+    });
+
+    $('button.set-time-points').on('click', function(evt){
+        var timePoints = window.prompt('Введите новое число time points');
+        if(timePoints === null)
+            return;
+            timePoints = parseInt(timePoints);
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('courses.api_participants') }}",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({
+                action: 'change_extra_data',
+                course_id: {{ course_id }},
+                user_id: {{ user_id }},
+                key: 'time_points',
+                value: timePoints
+            })
+        }).done(function (response) {
+            $.toaster({
+                message: response.result.toString(),
+                priority: 'success'
+            });
+        }).fail(function () {
+            $.toaster({
+                message: 'Не удалось сохранить изменения',
+                priority: 'danger'
+            });
+        });
+    });
+    {% endif %}
+
     $('button.btn-submit-for-review').click(function (evt) {
         if (!window.confirm('Вы прочитали документ по работе с дорешками по адресу https://goo.gl/2YQL5o и проверили, что решение оформлено в соответствии с правилами?'))
             return;
@@ -114,7 +179,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td>{% if item.topic_level %}<td>{% if item.topic_level == 1 %}<i class="fa fa-leaf"></i>{% elif item.topic_level == 2 %}<i class="fa fa-graduation-cap"></i>{% elif item.topic_level == 3 %}<i class="fa fa-trophy"></i>{% endif %}</td>{% else %}<td>?</td>{% endif %}<td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td>{% if item.topic_level %}<td>{% if item.topic_level == 1 %}<i class="fa fa-leaf topic-level"></i>{% elif item.topic_level == 2 %}<i class="fa fa-graduation-cap topic-level"></i>{% elif item.topic_level == 3 %}<i class="fa fa-trophy topic-level"></i>{% endif %}</td>{% else %}<td>?</td>{% endif %}<td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
@@ -122,12 +187,12 @@ $(function(){
         <div class="card mt-3">
             <a class="h4 card-header collapsed" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
             <div class="card-body collapse" id="solutionRevisions">
-                <h5 class="card-block card-title h5">Ваши time points: {{ time_points }} <i class="fa fa-clock-o"></i></h5>
+                <h5 class="card-block card-title h5">Ваши time points: {{ time_points }} <i class="fa fa-clock-o"></i>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-time-points"><i class="fa fa-pencil"></i></button>{% endif %}</h5>
 
                 <div class="card-block">
                 <h5 class="card-title h5">Полезные ссылки</h5>
                     <ul class="card-text">
-                        <li class="list-group-item"><a href="{{ 'https://www.sharelatex.com/project/' + sharelatex_project_id }}">Ваш проект на ShareLaTeX</a></li>
+                        <li class="list-group-item"><a href="{{ 'https://www.sharelatex.com/project/' + sharelatex_project_id }}">Ваш проект на ShareLaTeX</a>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-sharelatex-project-id"><i class="fa fa-pencil"></i></button>{% endif %}</li>
                         <li class="list-group-item"><a href="http://www.dainiak.com/ilatexprimer/">Интерактивное введение в LaTeX</a></li>
                         <li class="list-group-item"><a href="http://www.dainiak.com/latexcheck/">Авточекер</a></li>
                         <li class="list-group-item"><a href="https://goo.gl/FhyJJm">Правила оформления решений</a></li>

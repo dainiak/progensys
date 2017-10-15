@@ -9,7 +9,9 @@ from blueprints.models import \
     Group, \
     GroupMembership, \
     Trajectory, \
-    UserCourseTrajectory
+    UserCourseTrajectory,\
+    ExtraData
+
 import flask_login
 
 from json import dumps as to_json_string
@@ -376,6 +378,33 @@ def api_participants():
         db.session.delete(participant)
         db.session.commit()
         return jsonify(result='Success')
+
+    elif json['action'] == 'change_extra_data':
+        if not json.get('user_id') or not json.get('course_id') or not json.get('key') or not json.get('value'):
+            abort(400)
+
+        if not db.session.query(Participant).filter(
+                    Participant.user_id == json['user_id'],
+                    Participant.course_id == json['course_id'],
+                    Participant.role_id == Role.id,
+                    Role.code == 'LEANER'
+                ):
+            abort(400)
+
+        data = ExtraData.query.filter(
+            ExtraData.user_id == json['user_id'],
+            ExtraData.course_id == course_id,
+            ExtraData.key == json['key']
+        ).first()
+        if data == None:
+            data = ExtraData()
+            data.course_id = course_id
+            data.user_id = json['user_id']
+            data.key = json['key']
+            db.session.add(data)
+        data.value = str(json['value'])
+        db.session.commit()
+        return jsonify(result=f"Успешно обновлено значение {json['key']}={json['value']}")
 
     abort(400, 'Action not supported')
 
