@@ -88,8 +88,8 @@ def view_solution_review_requests(course_id):
 
                 time_points = int(time_points_data.value) if time_points_data else 0
 
-                if time_points > -days_left_for_submission:
-                    time_points += int(days_left_for_submission)
+                if time_points > -days_left_for_submission * 3:
+                    time_points += int(days_left_for_submission * 3)
                     time_points_data.value = str(time_points)
                     h = History()
                     h.user_id = user_id
