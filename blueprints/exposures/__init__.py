@@ -467,6 +467,22 @@ def new_exposure():
             group=None))
 
     if exposure_type == 'auto':
+        user_topic_estimated_complexity = dict()
+        for user_id, topic_id, event in db.session.query(
+                    History.user_id,
+                    History.comment,
+                    History.event
+                ).filter(History.event.in_(['MARKED_TOPIC_AS_UNWANTED', 'MARKED_TOPIC_AS_FAVOURABLE'])
+                ).order_by(History.datetime):
+            topic_id = int(topic_id)
+            if user_id not in user_topic_estimated_complexity:
+                user_topic_estimated_complexity[user_id] = dict()
+            if event == 'MARKED_TOPIC_AS_UNWANTED':
+                user_topic_estimated_complexity[user_id][topic_id] = 4
+            else:
+                user_topic_estimated_complexity[user_id][topic_id] = 0
+
+
         user_trajectories = db.session.query(User.id, Trajectory.id).filter(
             User.id.in_(user_ids),
             Participant.user_id == User.id,
@@ -717,8 +733,13 @@ def new_exposure():
 
             # Introduce penalty for giving problems on topics that were downvoted by the user
             # and/or are hard while there are some easier/upvoted topics left out of exposure
-            topics_having_levels = set(user_remaining_trajectory_topics) & set(topic_levels.keys())
-            active_levels = sorted(set(map(topic_levels.get, topics_having_levels)))
+            topic_levels_adjusted = dict(topic_levels)
+            if user_id in user_topic_estimated_complexity:
+                for topic_id, topic_level in user_topic_estimated_complexity[user_id].items():
+                    topic_levels_adjusted[topic_id] = topic_level
+
+            topics_having_levels = set(user_remaining_trajectory_topics) & set(topic_levels_adjusted.keys())
+            active_levels = sorted(set(map(topic_levels_adjusted.get, topics_having_levels)))
             lp_vars_level_fulfilled = dict()
             lp_var_including_harder_topic_while_leaving_out_easier = LpVariable(
                 'user_including_harder_topic_while_leaving_out_easier_{}'.format(user_id),
@@ -729,7 +750,7 @@ def new_exposure():
                     set(user_remaining_trajectory_topics) \
                     & set(
                         topic_id
-                        for topic_id, topic_level in topic_levels.items()
+                        for topic_id, topic_level in topic_levels_adjusted.items()
                         if topic_level == level
                     )
 
@@ -867,8 +888,7 @@ def mark_topic_priority_for_learner(course_id):
 
     if not(
             (user_id == flask_login.current_user.id and role == 'LEARNER')
-            or role in ['ADMIN', 'INSTRUCTOR']
-            ):
+            or role in ['ADMIN', 'INSTRUCTOR']):
         abort(403)
 
     if not json or json.get('action') not in ['mark_topic_as_unwanted', 'mark_topic_as_favourable']:
