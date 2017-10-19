@@ -90,16 +90,26 @@ def view_learner_dashboard(course_id, user_id=None):
                 ProblemStatusInfo.code != 'NOT_EXPOSED',
             ).order_by(
                 ProblemSetContent.sort_key
+            ).order_by(
+                ExposureGrading.timestamp.desc()
             ).all()
+
+        grading_results = []
+        newer_results = set()
+        for problem_id, icon in problem_set_grading_results:
+            if problem_id in newer_results:
+                continue
+            grading_results.append({
+                'problem_id': problem_id,
+                'icon': icon
+            })
+            newer_results.add(problem_id)
 
         exposures.append({
             'id': exposure_id,
             'date': exposure_timestamp.strftime('%Y-%m-%d'),
             'problem_set_id': problem_set_id,
-            'grading_results': [{
-                'problem_id': problem_id,
-                'icon': icon
-            } for problem_id, icon in problem_set_grading_results]
+            'grading_results': grading_results
         })
 
     trajectory_id = db.session.query(

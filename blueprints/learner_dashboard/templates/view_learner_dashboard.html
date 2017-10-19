@@ -158,9 +158,9 @@ $(function(){
                         <td>{{ exposure.date }}, #{{ exposure.id }}</td>
                         <td>{{ exposure.problem_set_id }}</td>
                         <td>
-{% if exposure.grading_results %}<table>
+{% if exposure.grading_results %}<table><tbody>
     <tr>{% for item in exposure.grading_results %}<td><a href="{{ url_for('problems.print_problem', problem_id=item.problem_id, course_id=course_id) }}">#{{ item.problem_id }}</a></td>{% endfor %}</tr><tr>
-                            {% for item in exposure.grading_results %}<td class="center">{{ item.icon }}</td>{% endfor %}</tr></table>{% endif %}</td>
+                            {% for item in exposure.grading_results %}<td class="center">{{ item.icon }}</td>{% endfor %}</tr></tbody></table>{% endif %}</td>
                     </tr>{% endfor %}</tbody>
                 </table>
             </div>
