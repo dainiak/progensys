@@ -9,10 +9,6 @@ a.h4.card-header.collapsed::before {
     content: "\25b6";
 }
 
-.dontprint {
-    display: none;
-}
-
 .center {
     text-align: center;
 }
