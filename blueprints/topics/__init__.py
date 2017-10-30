@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, abort, jsonify
 from blueprints.models import \
     db, \
     Role, \

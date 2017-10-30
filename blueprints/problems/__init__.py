@@ -33,7 +33,7 @@ def view_problems(problem_id=None):
     if role_code == 'LEARNER':
         return redirect(url_for('problems.print_problem', course_id=2, problem_id=problem_id))
 
-    if role_code not in ['INSTRUCTOR', 'ADMIN']:
+    if role_code not in ['INSTRUCTOR', 'ADMIN', 'GRADER']:
         abort(403)
     return render_template('view_problems.html', problem_id=problem_id)
 
@@ -93,7 +93,7 @@ def api():
         Role.id == Participant.role_id
     ).scalar()
 
-    if role_code not in ['INSTRUCTOR', 'ADMIN']:
+    if role_code not in ['INSTRUCTOR', 'ADMIN', 'GRADER']:
         abort(403)
 
     if action == 'load':
@@ -141,6 +141,8 @@ def api():
         })
 
     elif action == 'delete':
+        if role_code not in ['INSTRUCTOR', 'ADMIN']:
+            abort(403)
         if not json.get('problem_id'):
             abort(400)
         problem = db.session.query(Problem).filter(Problem.id == json.get('problem_id')).first()
@@ -158,6 +160,8 @@ def api():
         return jsonify(result='Successfully deleted a problem')
 
     elif action == 'update':
+        if role_code not in ['INSTRUCTOR', 'ADMIN']:
+            abort(403)
         if not json.get('item'):
             abort(400)
         item = json.get('item')
@@ -195,6 +199,8 @@ def api():
         })
 
     elif action == 'insert':
+        if role_code not in ['INSTRUCTOR', 'ADMIN']:
+            abort(403)
         if not json.get('item'):
             abort(400)
         item = json.get('item')
