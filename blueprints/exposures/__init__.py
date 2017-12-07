@@ -482,7 +482,6 @@ def new_exposure():
             else:
                 user_topic_estimated_complexity[user_id][topic_id] = 0
 
-
         user_trajectories = db.session.query(User.id, Trajectory.id).filter(
             User.id.in_(user_ids),
             Participant.user_id == User.id,
@@ -566,7 +565,7 @@ def new_exposure():
         penalty_for_giving_clone_of_exposed_problem = 1
         penalty_for_giving_clones = 10
         penalty_for_having_underflow = 1000
-        penalty_for_including_harder_topic_while_leaving_out_easier = 100
+        penalty_for_including_harder_topic_while_leaving_out_easier = 1000
         max_problems_per_user = int(request.args.get('max', 5))
 
         lp = LpProblem(name='Test Generation', sense=LpMinimize)
@@ -676,7 +675,6 @@ def new_exposure():
                     num_occurrences_of_topic_in_remaining_trajectory[topic_id]
                 )
 
-
             # Introduce penalty for giving clones at the same time
             family_of_clone_sets = list()
             problems_available_for_user_copy = set(problems_available_for_user)
@@ -701,7 +699,6 @@ def new_exposure():
                     1 + lp_clone_variable
                 )
                 lp_objective += lp_clone_variable * penalty_for_giving_clones
-
 
             # Introduce penalty for giving a user problems that he/she might have seen
             for problem_id in problems_available_for_user:
@@ -734,9 +731,9 @@ def new_exposure():
             # Introduce penalty for giving problems on topics that were downvoted by the user
             # and/or are hard while there are some easier/upvoted topics left out of exposure
             topic_levels_adjusted = dict(topic_levels)
-            if user_id in user_topic_estimated_complexity:
-                for topic_id, topic_level in user_topic_estimated_complexity[user_id].items():
-                    topic_levels_adjusted[topic_id] = topic_level
+            # if user_id in user_topic_estimated_complexity:
+            #     for topic_id, topic_level in user_topic_estimated_complexity[user_id].items():
+            #         topic_levels_adjusted[topic_id] = topic_level
 
             topics_having_levels = set(user_remaining_trajectory_topics) & set(topic_levels_adjusted.keys())
             active_levels = sorted(set(map(topic_levels_adjusted.get, topics_having_levels)))
@@ -841,6 +838,7 @@ def new_exposure():
             group=None,
             log_info=log_info
         ))
+
 
 @exposures_blueprint.route('/course-<int:course_id>/exposures', methods=['GET'])
 @exposures_blueprint.route('/course-<int:course_id>/exposures/', methods=['GET'])
