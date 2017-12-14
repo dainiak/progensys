@@ -566,7 +566,8 @@ def new_exposure():
         penalty_for_giving_clones = 10
         penalty_for_having_underflow = 1000
         penalty_for_including_harder_topic_while_leaving_out_easier = 1000
-        max_problems_per_user = int(request.form.get('max_problems_per_set', 5))
+        max_problems_per_user = request.form.get('max_problems_per_set', '')
+        max_problems_per_user = int(max_problems_per_user) if max_problems_per_user else 5
 
         lp = LpProblem(name='Test Generation', sense=LpMinimize)
         lp_objective = LpAffineExpression()
