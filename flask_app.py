@@ -17,6 +17,7 @@ from blueprints.trajectory import trajectory_blueprint
 from blueprints.learner_dashboard import learner_dashboard_blueprint
 from blueprints.solution_reviews import solution_reviews_blueprint
 from blueprints.topics import topics_blueprint
+from blueprints.finals import finals_blueprint
 
 from blueprints.autocompletion import autocompletion_blueprint
 
@@ -51,6 +52,7 @@ app.register_blueprint(trajectory_blueprint)
 app.register_blueprint(learner_dashboard_blueprint)
 app.register_blueprint(solution_reviews_blueprint)
 app.register_blueprint(topics_blueprint)
+app.register_blueprint(finals_blueprint)
 
 app.register_blueprint(migration_tools_blueprint)
 

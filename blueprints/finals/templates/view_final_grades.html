@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Результаты{% endblock %}
+
+{% block body %}
+    <div class="container-fluid">
+        <table class="card mt-3 table table-sm table-striped">
+            <thead class="thead-default">
+            <tr>
+                <th>Обучающийся</th>
+                <th>Балл</th>
+            </tr>
+            </thead>
+            <tbody>{% for fg in final_grades %}
+            <tr>
+                <td>{{ fg.username }}</td>
+                <td>{{ fg.grade }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock body %}
