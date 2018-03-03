@@ -220,6 +220,9 @@ def view_solution_review_requests(course_id):
             History.datetime.desc()
         ).first()
 
+        #TODO: check for DB integrity here
+        if not user_problem_history:
+            continue
         event_date = user_problem_history.datetime.strftime('%Y-%m-%d')
 
         deadline_passed = True
