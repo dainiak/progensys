@@ -69,6 +69,17 @@ def interface():
         elif user_request == 'assign_groups':
             usernames = json_data.get('usernames')
             group_code = json_data.get('group_code')
+            if group_code == 'CLEAR':
+                for username in usernames:
+                    user_id = User.query.filter_by(username=username).first().id
+                    db.session.query(
+                        GroupMembership
+                    ).filter(
+                        GroupMembership.user_id == user_id
+                    ).delete()
+                db.session.commit()
+                return 'Список групп у представленных студентов очищен'
+
             group_id = Group.query.filter_by(code=group_code).first().id
             if not group_id:
                 return 'Несуществующая группа'
