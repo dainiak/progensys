@@ -94,7 +94,7 @@
                 },
                 rowClick: function (args) {
                     currentItem = args.item;
-                    $('a.goto-sharelatex')[0].href = 'https://www.sharelatex.com/project/' + currentItem.sharelatex_project_id;
+                    $('a.goto-sharelatex')[0].href = 'https://www.overleaf.com/project/' + currentItem.sharelatex_project_id;
 
                     $('#takeActionModal .modal-title').text(
                         currentItem.user_name
@@ -217,7 +217,7 @@
                                 <textarea id="commentArea" class="form-control form-control-lg"></textarea>
                                 <label for="predefinedComments">Заготовленные комментарии:</label>
                                 <div class="btn-group" id="predefinedComments">
-                                    <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="См. комментарии на полях в скомпилированном PDF Вашего проекта на ShareLaTeX.">См. на полях.</button>
+                                    <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="См. комментарии на полях в Вашем проекте на Overleaf.">См. на полях.</button>
                                     <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="Имеются ошибки компиляции. Прежде всего, исправьте их.">Ошибки компиляции</button>
                                     <button type="button" class="btn btn-outline-secondary predefined-comment" data-comment="Есть корректные замечания авточекера, которые не были учтены перед отправкой решения на проверку.">Авточекер</button>
                                 </div>
@@ -225,7 +225,7 @@
                                 <label class="form-check-label"><input type="checkbox" class="form-check-input" id="notifyLearnerByEmail" checked="checked"> Оповестить обучающегося по электронной почте</label>
                             </div>
                             <div class="btn-group">
-                                <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> ShareLaTeX</a>
+                                <a class="btn btn-outline-secondary goto-sharelatex" target="_blank"><i class="fa fa-external-link"></i> Overleaf</a>
                                 <button type="button" class="btn btn-outline-secondary take-for-review">Взять на проверку</button>
                                 <button type="button" class="btn btn-outline-secondary change-deadline">Изменить deadline</button>
                                 <button type="button" class="btn btn-outline-danger send-for-revision">Запросить переделку</button>

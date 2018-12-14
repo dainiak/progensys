@@ -54,6 +54,7 @@ def view_solution_review_requests(course_id):
                     'accept_solution',
                     'send_for_revision',
                     'submit_for_review',
+                    'ban_for_plagiarism',
                     'load_review_history'
                 ]
                 or current_user_role == 'LEARNER' and action == 'submit_for_review'):
