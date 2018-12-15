@@ -179,36 +179,30 @@ def view_final_grades(course_id):
                 num_topics_per_level[t['topic_level']] += 1
                 if (t['problem_id'] is not None) and not t['is_on_revision']:
                     num_checked_topics_per_level[t['topic_level']] += 1
-        while True:
-            changed = False
-            if num_checked_topics_per_level[2] < num_topics_per_level[2]:
-                if num_checked_topics_per_level[3] > 0:
-                    num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
-                    num_checked_topics_per_level[2] += 1
-                    changed = True
-            if num_checked_topics_per_level[1] < num_topics_per_level[1]:
-                if num_checked_topics_per_level[2] > 0:
-                    num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
-                    num_checked_topics_per_level[1] += 1
-                    changed = True
-            if not changed:
-                break
 
-        final_grade = 0
-        if num_checked_topics_per_level[1] == num_topics_per_level[1]:
-            final_grade = 4
-            if num_checked_topics_per_level[2] >= num_topics_per_level[2] - 2:
-                final_grade += 1
-            if num_checked_topics_per_level[2] >= num_topics_per_level[2] - 1:
-                final_grade += 1
-            if num_checked_topics_per_level[2] >= num_topics_per_level[2]:
-                final_grade += 1
-            if num_checked_topics_per_level[3] >= num_topics_per_level[3] - 2:
-                final_grade += 1
-            if num_checked_topics_per_level[3] >= num_topics_per_level[3] - 1:
-                final_grade += 1
-            if num_checked_topics_per_level[3] >= num_topics_per_level[3]:
-                final_grade += 1
+        while True:
+            if num_checked_topics_per_level[2] < num_topics_per_level[2] \
+                    and num_checked_topics_per_level[3] > 0:
+                num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
+                num_checked_topics_per_level[2] += 1
+                continue
+
+            if num_checked_topics_per_level[1] < num_topics_per_level[1] \
+                    and num_checked_topics_per_level[2] > 0:
+                num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
+                num_checked_topics_per_level[1] += 1
+                continue
+
+            break
+
+        final_grade = (
+            (num_checked_topics_per_level[1] == num_topics_per_level[1]) *
+            (
+                4 +
+                max(0, num_checked_topics_per_level[2] - num_topics_per_level[2] + 3) +
+                max(0, num_checked_topics_per_level[3] - num_topics_per_level[3] + 3)
+            )
+        )
 
         final_grades.append({
             'username': user_username,
