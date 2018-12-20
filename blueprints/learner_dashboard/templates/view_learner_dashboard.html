@@ -139,6 +139,14 @@ $(function(){
 
 {% block body %}
     <div class="container-fluid">
+        <div class="card mt-3">
+            {% if final_grade %}
+                <p>Итоговая оценка: {{ final_grade }}</p>
+            {% endif %}
+            {% if final_grade_with_revision %}
+                <p>Итоговая оценка, которая может быть, при условии, что будут сданы все задачи, находящиеся на дорешке: {{ final_grade_with_revision }}</p>
+            {% endif %}
+        </div>
         {% if instructor_mode %}<h2 class="h2 mt-3">Результаты пользователя {{ username }}</h2>{% else %}
         <div class="card mt-3">
             <a class="h4 card-header" href="https://goo.gl/2YQL5o" target="_blank"><i class="fa fa-external-link"></i> Справка по работе с информационной системой и дорешками</a>

@@ -21,6 +21,7 @@ from blueprints.models import \
     User, \
     TopicLevelAssignment
 
+from blueprints.finals import get_final_grade
 from datetime import datetime, timedelta
 from collections import defaultdict
 from json import loads as parse_json
@@ -184,41 +185,23 @@ def view_learner_dashboard(course_id, user_id=None):
 
     num_topics_per_level = defaultdict(int)
     num_checked_topics_per_level = defaultdict(int)
+    num_checked_topics_per_level_with_revision = defaultdict(int)
     for t in trajectory:
         if t['topic_level'] in [1, 2, 3]:
             num_topics_per_level[t['topic_level']] += 1
-            if (t['problem_id'] is not None) and not t['is_on_revision']:
-                num_checked_topics_per_level[t['topic_level']] += 1
-    while True:
-        changed = False
-        if num_checked_topics_per_level[2] < num_topics_per_level[2]:
-            if num_checked_topics_per_level[3] > 0:
-                num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
-                num_checked_topics_per_level[2] += 1
-                changed = True
-        if num_checked_topics_per_level[1] < num_topics_per_level[1]:
-            if num_checked_topics_per_level[2] > 0:
-                num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
-                num_checked_topics_per_level[1] += 1
-                changed = True
-        if not changed:
-            break
+            if t['problem_id'] is not None:
+                if not t['is_on_revision']:
+                    num_checked_topics_per_level[t['topic_level']] += 1
+                num_checked_topics_per_level_with_revision[t['topic_level']] += 1
 
-    final_grade = 0
-    if num_checked_topics_per_level[1] == num_topics_per_level[1]:
-        final_grade = 4
-        if num_checked_topics_per_level[2] >= num_topics_per_level[2] - 2:
-            final_grade += 1
-        if num_checked_topics_per_level[2] >= num_topics_per_level[2] - 1:
-            final_grade += 1
-        if num_checked_topics_per_level[2] >= num_topics_per_level[2]:
-            final_grade += 1
-        if num_checked_topics_per_level[3] >= num_topics_per_level[3] - 2:
-            final_grade += 1
-        if num_checked_topics_per_level[3] >= num_topics_per_level[3] - 1:
-            final_grade += 1
-        if num_checked_topics_per_level[3] >= num_topics_per_level[3]:
-            final_grade += 1
+    final_grade = get_final_grade(
+        num_topics_per_level,
+        num_checked_topics_per_level
+    )
+    final_grade_with_revision = get_final_grade(
+        num_topics_per_level,
+        num_checked_topics_per_level_with_revision
+    )
 
     revisions = []
     for (problem_id,) in db.session.query(
@@ -305,5 +288,6 @@ def view_learner_dashboard(course_id, user_id=None):
         instructor_mode=instructor_mode,
         username=username,
         time_points=time_points,
-        final_grade=final_grade
+        final_grade=final_grade,
+        final_grade_with_revision=final_grade_with_revision
     )

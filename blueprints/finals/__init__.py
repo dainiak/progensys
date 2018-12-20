@@ -28,10 +28,35 @@ from text_tools import latex_to_html
 
 finals_blueprint = Blueprint('finals', __name__, template_folder='templates')
 
+def get_final_grade(num_topics_per_level, num_checked_topics_per_level):
+    while True:
+        if num_checked_topics_per_level[2] < num_topics_per_level[2] \
+                and num_checked_topics_per_level[3] > 0:
+            num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
+            num_checked_topics_per_level[2] += 1
+            continue
+
+        if num_checked_topics_per_level[1] < num_topics_per_level[1] \
+                and num_checked_topics_per_level[2] > 0:
+            num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
+            num_checked_topics_per_level[1] += 1
+            continue
+
+        break
+
+    return (
+            (num_checked_topics_per_level[1] == num_topics_per_level[1]) *
+            (
+                    4 +
+                    max(0, num_checked_topics_per_level[2] - num_topics_per_level[2] + 3) +
+                    max(0, num_checked_topics_per_level[3] - num_topics_per_level[3] + 3)
+            )
+    )
 
 @finals_blueprint.route('/course-<int:course_id>/finals', methods=['GET'])
 @finals_blueprint.route('/course-<int:course_id>/finals/', methods=['GET'])
 @flask_login.login_required
+
 def view_final_grades(course_id):
     role = db.session.query(
         Role.code
@@ -174,39 +199,28 @@ def view_final_grades(course_id):
 
         num_topics_per_level = defaultdict(int)
         num_checked_topics_per_level = defaultdict(int)
+        num_checked_topics_per_level_with_revision = defaultdict(int)
         for t in trajectory:
             if t['topic_level'] in [1, 2, 3]:
                 num_topics_per_level[t['topic_level']] += 1
-                if (t['problem_id'] is not None) and not t['is_on_revision']:
-                    num_checked_topics_per_level[t['topic_level']] += 1
+                if t['problem_id'] is not None:
+                    if not t['is_on_revision']:
+                        num_checked_topics_per_level[t['topic_level']] += 1
+                    num_checked_topics_per_level_with_revision[t['topic_level']] += 1
 
-        while True:
-            if num_checked_topics_per_level[2] < num_topics_per_level[2] \
-                    and num_checked_topics_per_level[3] > 0:
-                num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
-                num_checked_topics_per_level[2] += 1
-                continue
-
-            if num_checked_topics_per_level[1] < num_topics_per_level[1] \
-                    and num_checked_topics_per_level[2] > 0:
-                num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
-                num_checked_topics_per_level[1] += 1
-                continue
-
-            break
-
-        final_grade = (
-            (num_checked_topics_per_level[1] == num_topics_per_level[1]) *
-            (
-                4 +
-                max(0, num_checked_topics_per_level[2] - num_topics_per_level[2] + 3) +
-                max(0, num_checked_topics_per_level[3] - num_topics_per_level[3] + 3)
-            )
+        final_grade = get_final_grade(
+            num_topics_per_level,
+            num_checked_topics_per_level
+        )
+        final_grade_with_revision = get_final_grade(
+            num_topics_per_level,
+            num_checked_topics_per_level_with_revision
         )
 
         final_grades.append({
             'username': user_username,
-            'grade': final_grade
+            'final_grade': final_grade,
+            'final_grade_with_revision': final_grade_with_revision
         })
 
     return render_template(

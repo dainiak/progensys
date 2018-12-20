@@ -9,12 +9,14 @@
             <tr>
                 <th>Обучающийся</th>
                 <th>Балл</th>
+                <th>Балл с дорешками</th>
             </tr>
             </thead>
             <tbody>{% for fg in final_grades %}
             <tr>
                 <td>{{ fg.username }}</td>
-                <td>{{ fg.grade }}</td>
+                <td>{{ fg.final_grade }}</td>
+                <td>{{ fg.final_grade_with_revision }}</td>
             </tr>
             {% endfor %}
             </tbody>
