@@ -16,15 +16,10 @@ from blueprints.models import \
     ProblemStatus, \
     TrajectoryContent, \
     ProblemTopicAssignment, \
-    History, \
-    ExtraData, \
     User, \
     TopicLevelAssignment
 
-from datetime import datetime, timedelta
 from collections import defaultdict
-
-from text_tools import latex_to_html
 
 finals_blueprint = Blueprint('finals', __name__, template_folder='templates')
 
@@ -56,7 +51,6 @@ def get_final_grade(num_topics_per_level, num_checked_topics_per_level):
 @finals_blueprint.route('/course-<int:course_id>/finals', methods=['GET'])
 @finals_blueprint.route('/course-<int:course_id>/finals/', methods=['GET'])
 @flask_login.login_required
-
 def view_final_grades(course_id):
     role = db.session.query(
         Role.code
