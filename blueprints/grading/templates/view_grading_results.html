@@ -18,7 +18,7 @@
                 var list = [];
                 var problem_statuses = {{ problem_statuses | safe }};
 
-                for(var i = 1; i <= 7; ++i){
+                for(var i = 1; i <= 10; ++i){
                     list.push(function(pNumber){return {
                         title: "Задача " + pNumber.toString(),
                         name: "p" + pNumber.toString(),
