@@ -52,9 +52,11 @@ def view_solution_review_requests(course_id):
                 and action in [
                     'take_for_review',
                     'accept_solution',
+                    'reject_solution',
                     'send_for_revision',
                     'submit_for_review',
                     'ban_for_plagiarism',
+                    'close_review_request',
                     'load_review_history'
                 ]
                 or current_user_role == 'LEARNER' and action == 'submit_for_review'):
@@ -124,7 +126,8 @@ def view_solution_review_requests(course_id):
                     'SENT_FOR_REVISION',
                     'LEARNER_SENT_REVIEW_REQUEST',
                     'TAKEN_FOR_REVIEW',
-                    'SOLUTION_ACCEPTED'
+                    'SOLUTION_ACCEPTED',
+                    'SOLUTION_REJECTED'
                 ])
             ).order_by(
                 History.datetime.desc()
@@ -135,7 +138,8 @@ def view_solution_review_requests(course_id):
                 'SENT_FOR_REVISION': 'Преподаватель отправил решение на переделку',
                 'LEARNER_SENT_REVIEW_REQUEST': 'Студент отправил решение на проверку',
                 'TAKEN_FOR_REVIEW': 'Преподаватель взял решение на проверку',
-                'SOLUTION_ACCEPTED': 'Решение зачтено'
+                'SOLUTION_ACCEPTED': 'Решение зачтено',
+                'SOLUTION_REJECTED': 'Решение не зачтено, проверка закрыта'
             }
 
             history = []
@@ -163,6 +167,12 @@ def view_solution_review_requests(course_id):
         elif action == 'accept_solution':
             h.event = 'SOLUTION_ACCEPTED'
             status_id = ProblemStatusInfo.query.filter_by(code='SOLUTION_CORRECT').first().id
+            ps = ProblemStatus.query.filter_by(user_id=h.user_id, problem_id=h.problem_id).first()
+            ps.status_id = status_id
+            ps.timestamp_last_changed = datetime.now()
+        elif action == 'reject_solution':
+            h.event = 'SOLUTION_REJECTED'
+            status_id = ProblemStatusInfo.query.filter_by(code='SOLUTION_WRONG').first().id
             ps = ProblemStatus.query.filter_by(user_id=h.user_id, problem_id=h.problem_id).first()
             ps.status_id = status_id
             ps.timestamp_last_changed = datetime.now()

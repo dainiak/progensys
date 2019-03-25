@@ -177,6 +177,10 @@
                 $('#takeActionModal').modal('hide');
                 sendCommand('accept_solution');
             });
+            $('#takeActionModal button.reject-solution').click(function(){
+                $('#takeActionModal').modal('hide');
+                sendCommand('reject_solution');
+            });
             $('#takeActionModal button.change-deadline').click(function(){
                 alert('Совсем скоро эта фича будет реализована…');
                 return;
@@ -230,6 +234,7 @@
                                 <button type="button" class="btn btn-outline-secondary change-deadline">Изменить deadline</button>
                                 <button type="button" class="btn btn-outline-danger send-for-revision">Запросить переделку</button>
                                 <button type="button" class="btn btn-outline-success accept-solution">Зачесть</button>
+                                <button type="button" class="btn btn-outline-success reject-solution">Незачёт</button>
                             </div>
                         </div>
                     </div>
