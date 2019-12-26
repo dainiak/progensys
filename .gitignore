@@ -3,3 +3,4 @@ sqldumps/
 venv/
 .idea/
 tpbeta_security.py
+flask_app.pyc

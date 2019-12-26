@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for
 import flask_login
+from sqlalchemy import distinct as sql_distinct
 
 from blueprints.models import \
     db, \
@@ -75,7 +76,7 @@ def view_exposure(course_id, exposure_string):
 
     # TODO: make this a single SQL query instead of SQL&Python mix
     max_problems_per_set = max(x[1] for x in db.session.query(
-        ProblemSetContent.problem_set_id, db.func.count(ProblemSetContent.problem_id)
+        ProblemSetContent.problem_set_id, db.func.count(sql_distinct(ProblemSetContent.problem_id))
     ).group_by(
         ProblemSetContent.problem_set_id
     ).filter(
@@ -224,7 +225,7 @@ def api_exposure():
                 Participant.user_id == flask_login.current_user.id,
                 Participant.course_id == course_id,
                 Participant.role_id == Role.id,
-                Role.code == 'ADMIN'
+                Role.code.in_(['ADMIN', 'INSTRUCTOR'])
             ).first():
         abort(403)
 

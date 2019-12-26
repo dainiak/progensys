@@ -202,6 +202,7 @@ def view_learner_dashboard(course_id, user_id=None):
         num_topics_per_level,
         num_checked_topics_per_level_with_revision
     )
+    # final_grade = final_grade_with_revision = '—'
 
     revisions = []
     for (problem_id,) in db.session.query(
@@ -277,6 +278,15 @@ def view_learner_dashboard(course_id, user_id=None):
     ).first()
     time_points = time_points and time_points[0]
 
+    gdrive_scans_folder_id = db.session.query(
+        ExtraData.value
+    ).filter(
+        ExtraData.user_id == user_id,
+        ExtraData.course_id == course_id,
+        ExtraData.key == 'gdrive_scans_folder_id'
+    ).first()
+    gdrive_scans_folder_id = gdrive_scans_folder_id and gdrive_scans_folder_id[0]
+
     return render_template(
         'view_learner_dashboard.html',
         exposures=exposures,
@@ -288,6 +298,7 @@ def view_learner_dashboard(course_id, user_id=None):
         instructor_mode=instructor_mode,
         username=username,
         time_points=time_points,
+        gdrive_scans_folder_id = gdrive_scans_folder_id,
         final_grade=final_grade,
         final_grade_with_revision=final_grade_with_revision
     )

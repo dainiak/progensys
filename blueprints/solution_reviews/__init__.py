@@ -12,7 +12,7 @@ from blueprints.models import \
     History, \
     ExtraData
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from json import dumps as to_json_string
 from json import loads as parse_json
 
@@ -23,13 +23,19 @@ solution_reviews_blueprint = Blueprint('solution_reviews', __name__, template_fo
 
 
 def notify_user(user_id, problem_id, status):
-    email = db.session.query(User.email).filter(User.id == user_id).scalar()
-    msg = Message(subject=f'Дискретные структуры: дорешка задачи #{problem_id}',
-                  body=
-f'''{status}
-Письмо сформировано автоматически; пожалуйста, не отвечайте на него. При необходимости напишите лично проверяющему.''',
-                  recipients=[email])
-    current_app.config['MAILER'].send(msg)
+    try:
+        email = db.session.query(User.email).filter(User.id == user_id).scalar()
+        msg = Message(
+            subject=f'Дискретные структуры: дорешка задачи #{problem_id}',
+            body=
+    f'''{status}
+    Письмо сформировано автоматически; пожалуйста, не отвечайте на него. При необходимости напишите лично проверяющему.''',
+            recipients=[email]
+        )
+        current_app.config['MAILER'].send(msg)
+    except:
+        return False
+    return True
 
 
 @solution_reviews_blueprint.route('/course-<int:course_id>/solution_reviews/', methods=['GET', 'POST'])
@@ -143,14 +149,16 @@ def view_solution_review_requests(course_id):
             }
 
             history = []
+
             for event, comment, timestamp in review_history:
+                timestring = (timestamp + timedelta(hours=3)).strftime("%Y-%m-%d—%H:%MMSK")
                 if comment and comment.strip():
                     comment = latex_to_html(comment)
                     history.append(
-                        f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]} с комментарием “{comment}”'
+                        f'{timestring}: {descriptions[event]} с комментарием “{comment}”'
                     )
                 else:
-                    history.append(f'{timestamp.strftime("%Y-%m-%d")}: {descriptions[event]}')
+                    history.append(f'{timestring}: {descriptions[event]}')
 
             return jsonify(history=history)
 
@@ -184,21 +192,25 @@ def view_solution_review_requests(course_id):
         db.session.add(h)
         db.session.commit()
 
+        result='Изменения успешно сохранены'
         if json.get('notify_learner'):
+            notification_success = True
             if action == 'accept_solution':
-                notify_user(
+                notification_success = notify_user(
                     h.user_id,
                     h.problem_id,
                     f'Решение зачтено с комментарием “{latex_to_html(h.comment)}”'
                 )
             elif action == 'send_for_revision':
-                notify_user(
+                notification_success = notify_user(
                     h.user_id,
                     h.problem_id,
                     f'Решение отправлено на доработку с комментарием “{latex_to_html(h.comment)}”. Крайний срок см. в личном кабинете.'
                 )
+            if not notification_success:
+                jsonify(result='Изменения сохранены, но при отправке email-оповещения произошла ошибка.')
 
-        return jsonify(result='Изменения успешно сохранены')
+        return jsonify(result=result)
 
     if current_user_role not in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
         abort(403)
@@ -234,19 +246,19 @@ def view_solution_review_requests(course_id):
         #TODO: check for DB integrity here
         if not user_problem_history:
             continue
-        event_date = user_problem_history.datetime.strftime('%Y-%m-%d')
+        event_date = (user_problem_history.datetime + timedelta(hours=3)).strftime('%Y-%m-%d—%H:%MMSK')
 
         deadline_passed = True
         if user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
-            review_status = 'Находится на дорешке с {}.'.format(event_date)
+            review_status = f'Находится на дорешке с {event_date}.'
             deadline_passed = (datetime.now() - user_problem_history.datetime) >= timedelta(days=10)
         elif user_problem_history.event == 'SENT_FOR_REVISION':
-            review_status = 'Находится на переделке с {}.'.format(event_date)
+            review_status = f'Находится на переделке с {event_date}.'
             deadline_passed = (datetime.now() - user_problem_history.datetime) >= timedelta(days=10)
         elif user_problem_history.event == 'LEARNER_SENT_REVIEW_REQUEST':
-            review_status = 'Обучающийся отправил запрос на проверку решения {}.'.format(event_date)
+            review_status = f'Обучающийся отправил запрос на проверку решения {event_date}.'
         elif user_problem_history.event == 'TAKEN_FOR_REVIEW':
-            review_status = 'Взято на проверку ({}, {}).'.format(user_problem_history.comment, event_date)
+            review_status = f'Взято на проверку ({user_problem_history.comment}, {event_date}).'
 
         sharelatex_project_id = db.session.query(
             ExtraData.value

@@ -5,7 +5,7 @@
 $(function(){
     {% if instructor_mode %}
     $('button.set-sharelatex-project-id').on('click', function(evt){
-        var sharelatex_project_id = window.prompt('Введите ID проекта на ShareLaTeX (24 символа)');
+        var sharelatex_project_id = window.prompt('Введите ID проекта на Overleaf (24 символа)');
         if(sharelatex_project_id === null)
             return;
         if(sharelatex_project_id.length != 24){
@@ -154,6 +154,15 @@ $(function(){
         <div class="card">
             <a class="h4 card-header collapsed" data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a>
             <div class="card-body collapse" id="exposuresAndGrading">
+                {% if gdrive_scans_folder_id %}
+                <div class="card mt-3">
+                    <div class="card-text">
+                        <ul>
+                        <li><a target = "_blank" href="https://drive.google.com/open?id={{ gdrive_scans_folder_id }}">Отсканированные письменные работы с комментариями</a></li>
+                        </ul>
+                    </div>
+                    </div>
+                {% endif %}
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
                     <tr>
@@ -163,7 +172,7 @@ $(function(){
                     </tr>
                     </thead>
                     <tbody>{% for exposure in exposures %}<tr>
-                        <td>{{ exposure.date }}, #{{ exposure.id }}</td>
+                        <td id="exposure-{{ exposure.id }}">{{ exposure.date }}, #{{ exposure.id }}</td>
                         <td>{{ exposure.problem_set_id }}</td>
                         <td>
 {% if exposure.grading_results %}<table><tbody>
@@ -176,7 +185,6 @@ $(function(){
         <div class="card mt-3">
             <a class="h4 card-header collapsed" data-toggle="collapse" href="#trajectoryProgress">Движение по траектории</a>
             <div class="card-body collapse" id="trajectoryProgress">
-                <div class="card-text">Текущая оценка за курс: {{ final_grade }}</div>
                 <table class="table table-sm table-striped">
                     <thead class="thead-default">
                         <tr><th></th>
@@ -201,10 +209,10 @@ $(function(){
                 <div class="card-block">
                 <h5 class="card-title h5">Полезные ссылки</h5>
                     <ul class="card-text">
-                        <li class="list-group-item"><a href="{{ 'https://www.sharelatex.com/project/' + sharelatex_project_id }}">Ваш проект на ShareLaTeX</a>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-sharelatex-project-id"><i class="fa fa-pencil"></i></button>{% endif %}</li>
+                        <li class="list-group-item"><a href="{{ 'https://www.sharelatex.com/project/' + sharelatex_project_id }}">Ваш проект на Overleaf</a>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-sharelatex-project-id"><i class="fa fa-pencil"></i></button>{% endif %}</li>
                         <li class="list-group-item"><a href="http://www.dainiak.com/ilatexprimer/">Интерактивное введение в LaTeX</a></li>
                         <li class="list-group-item"><a href="http://www.dainiak.com/latexcheck/">Авточекер</a></li>
-                        <li class="list-group-item"><a href="https://goo.gl/FhyJJm">Правила оформления решений</a></li>
+                        <li class="list-group-item"><a href="https://stepik.org/lesson/258747/step/4?unit=239243">Правила оформления решений</a></li>
                     </ul>
                 </div>
                 <div class="card-block">

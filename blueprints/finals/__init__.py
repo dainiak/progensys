@@ -24,29 +24,58 @@ from collections import defaultdict
 finals_blueprint = Blueprint('finals', __name__, template_folder='templates')
 
 def get_final_grade(num_topics_per_level, num_checked_topics_per_level):
-    while True:
-        if num_checked_topics_per_level[2] < num_topics_per_level[2] \
-                and num_checked_topics_per_level[3] > 0:
-            num_checked_topics_per_level[3] -= min(2, num_checked_topics_per_level[3])
-            num_checked_topics_per_level[2] += 1
-            continue
+    # Закрыты все задачи -- ставим 10,
+    # не закрыта ровно 1 задача 2 или 3 уровня -- ставим 9,
+    # не закрыто ровно 2 кубка или не закрыты 1 кубок и 1 шляпка -- 8.
+    # Во всех остальных случаях действуем по алгоритму:
+    #   Нужны все закрытые листики, чтобы было минимум 3.
+    #   Две шляпки закрывают 1 листик, но 1 кубок закрывает 1 листик. Два кубка закрывают одну шляпку.
+    #   Получается, действие должно быть таким:
+    #   Не хватает листиков -- покрываем их сколько можем шляпками, если покрылись -- все хорошо,
+    #    продолжаем считать шляпки и кубки (следующие пункты).
+    #    Пусть есть непокрытые листики, а шляпка осталась максимум одна, тогда начинаем с помощью кубков покрывать листики.
+    #   Если в итоге все листики после сгорания шляпок или кубков покрылись, то: оценка  3 -- осталось 0 шляпок и кубков.
+    #   Иначе покрываем кубками все недостающие шляпки (2 на 1). Если шляпки покрылись не все, ставим оценку 4.
+    #   Пусть покрылись все шляпки. Дальше если кубков не осталось -- оценка 5, если один кубок -- 6, кубков хотя бы 2 -- 7.
+    diffs = {i: num_topics_per_level[i]-num_checked_topics_per_level[i] for i in [1, 2, 3]}
+    if sum(diffs.values()) == 0:
+        return 10
+    if sum(diffs.values()) == 1 and diffs[1] == 0:
+        return 9
+    if sum(diffs.values()) == 2 and diffs[1] == 0 and diffs[2] <= 1:
+        return 8
 
-        if num_checked_topics_per_level[1] < num_topics_per_level[1] \
-                and num_checked_topics_per_level[2] > 0:
-            num_checked_topics_per_level[2] -= min(2, num_checked_topics_per_level[2])
+    while num_checked_topics_per_level[1] < num_topics_per_level[1]:
+        if num_checked_topics_per_level[2] >= 2:
+            num_checked_topics_per_level[2] -= 2
             num_checked_topics_per_level[1] += 1
             continue
-
+        if num_checked_topics_per_level[3] >= 1:
+            num_checked_topics_per_level[3] -= 1
+            num_checked_topics_per_level[1] += 1
+            continue
         break
+    if num_checked_topics_per_level[1] < num_topics_per_level[1]:
+        return max(1, 3 + num_checked_topics_per_level[1] - num_topics_per_level[1])
+    while num_checked_topics_per_level[2] < num_topics_per_level[2]:
+        if num_checked_topics_per_level[3] >= 2:
+            num_checked_topics_per_level[3] -= 2
+            num_checked_topics_per_level[2] += 1
+            continue
+        break
+    if num_checked_topics_per_level[2] + num_checked_topics_per_level[3] == 0:
+        return 3
+    if num_checked_topics_per_level[2] < num_topics_per_level[2]:
+        return 4
+    if num_checked_topics_per_level[3] == 0:
+        return 5
+    if num_checked_topics_per_level[3] == 1:
+        return 6
+    if num_checked_topics_per_level[3] >= 2:
+        return 7
 
-    return (
-            (num_checked_topics_per_level[1] == num_topics_per_level[1]) *
-            (
-                    4 +
-                    max(0, num_checked_topics_per_level[2] - num_topics_per_level[2] + 3) +
-                    max(0, num_checked_topics_per_level[3] - num_topics_per_level[3] + 3)
-            )
-    )
+    assert False
+
 
 @finals_blueprint.route('/course-<int:course_id>/finals', methods=['GET'])
 @finals_blueprint.route('/course-<int:course_id>/finals/', methods=['GET'])

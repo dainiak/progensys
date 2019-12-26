@@ -84,7 +84,7 @@ def api_user_management():
             if 'name_first' in item and item['name_first'] != user.name_first:
                 changed = True
                 user.name_first = item['name_first']
-            if 'name_last' in item and item['name_last'] != user.name_middle:
+            if 'name_last' in item and item['name_last'] != user.name_last:
                 changed = True
                 user.name_last = item['name_last']
             if 'name_middle' in item and item['name_middle'] != user.name_middle:

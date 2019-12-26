@@ -1,5 +1,7 @@
+from sqlalchemy import distinct as sql_distinct
 from flask import Blueprint, render_template, request, abort, jsonify
 import flask_login
+
 
 from blueprints.models import \
     db, \
@@ -106,6 +108,8 @@ def api_grading():
                 ExposureGradingResult.exposure_grading_id == ExposureGrading.id,
                 ExposureGradingResult.user_id == user_id,
                 ExposureGradingResult.problem_set_id == problem_set_id
+            ).order_by(
+                ExposureGrading.timestamp
             ).all()
             graded_problems = {p[0]: p[1] for p in graded_problems}
 
@@ -127,13 +131,20 @@ def api_grading():
         if None in [grader_id, user_id, exposure_id, problem_set_id]:
             return jsonify(error='Data required for storing the grading result was not provided')
 
-        grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+        # grading = ExposureGrading.query.filter_by(
+        #     grader_id=grader_id,
+        #     exposure_id=exposure_id
+        # ).first()
+        grading = False
         if not grading:
             grading = ExposureGrading(exposure_id, grader_id)
             grading.timestamp = datetime.now()
             db.session.add(grading)
             db.session.commit()
-            grading = ExposureGrading.query.filter_by(grader_id=grader_id, exposure_id=exposure_id).first()
+            # grading = ExposureGrading.query.filter_by(
+            #     grader_id=grader_id,
+            #     exposure_id=exposure_id,
+            # ).first()
 
         existing_grading_results = ExposureGradingResult.query.filter_by(
             exposure_grading_id=grading.id,
@@ -243,10 +254,27 @@ def view_grading_table(exposure_string, course_id, group=None):
     user_ids = list(map(lambda x: x[0], user_query.all()))
     problem_statuses = [{'icon': ps.icon, 'id': ps.id} for ps in ProblemStatusInfo.query.all()]
 
+    max_problems_per_set_query = db.session.query(
+        ProblemSetContent.problem_set_id, db.func.count(sql_distinct(ProblemSetContent.problem_id))
+    ).group_by(
+        ProblemSetContent.problem_set_id
+    ).filter(
+        ProblemSetContent.problem_set_id == ExposureContent.problem_set_id,
+        ExposureContent.exposure_id.in_(exposure_ids)
+    )
+    if group is not None:
+        max_problems_per_set_query = max_problems_per_set_query.filter(
+            GroupMembership.group_id == group_id,
+            GroupMembership.user_id == User.id,
+            ExposureContent.user_id == User.id
+        )
+    max_problems_per_set = max(x[1] for x in max_problems_per_set_query.all())
+
     return render_template(
         'view_grading_results.html',
         exposure_ids=to_json_string(exposure_ids),
         user_ids=to_json_string(user_ids),
         problem_statuses=to_json_string(problem_statuses),
-        course_id=course_id
+        course_id=course_id,
+        max_problems_per_set=max_problems_per_set
     )

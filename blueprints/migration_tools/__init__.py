@@ -163,13 +163,77 @@ f'''Ваше имя пользователя для входа в систему
             for datum in json_data['data']:
                 ed = ExtraData()
                 ed.course_id = course_id
-                ed.user_id = datum['user_id']
+                if 'user_id' in datum:
+                    ed.user_id = datum['user_id']
+                else:
+                    ed.user_id = User.query.filter_by(username=datum['username']).first().id
                 ed.key = datum['key']
                 ed.value = datum['value']
                 db.session.add(ed)
 
             db.session.commit()
             return 'Запрос выполнен успешно.'
+
+        elif user_request == 'i_am_lazy':
+            course_id = json_data.get('course_id')
+            if not course_id:
+                return 'Не указан курс'
+            role_id = Role.query.filter_by(code='LEARNER').first().id
+            everything = json_data.get('everything')
+            for line in everything.strip().splitlines():
+                surname, name, group_code, email_main, email_overleaf, id_overleaf, id_stepik = line.split('\t')
+                if ('@' not in email_main) or ('@' not in email_overleaf) or ('@' in group_code) or (not id_stepik.isdecimal()):
+                    break
+
+                username = f'{surname} {name}'
+                new_user = User.query.filter_by(username=username).first()
+                if not new_user:
+                    new_user = User()
+                    new_user.name_last, new_user.name_first = surname, name
+                    new_user.email = email_main
+                    new_user.username = username
+                    db.session.add(new_user)
+                    db.session.commit()
+                user_id = new_user.id
+
+                if not Participant.query.filter_by(user_id=user_id, course_id=course_id, role_id=role_id).first():
+                    p = Participant(user_id, course_id, role_id)
+                    db.session.add(p)
+                    db.session.commit()
+
+                group = Group.query.filter_by(code=group_code).first()
+                if group:
+                    group_id = group.id
+                else:
+                    group = Group()
+                    group.code = group_code
+                    title = group_code
+                    suggested_role = role_id
+                    suggested_course = course_id
+                    db.session.add(group)
+                    db.session.commit()
+                    group_id = group.id
+
+                if not GroupMembership.query.filter_by(user_id=user_id, group_id=group_id).first():
+                    gm = GroupMembership(user_id, group_id)
+                    db.session.add(gm)
+                    db.session.commit()
+                ed = ExtraData()
+                ed.course_id = course_id
+                ed.user_id = user_id
+                ed.key = 'time_points'
+                ed.value = 100
+                db.session.add(ed)
+                ed = ExtraData()
+                ed.course_id = course_id
+                ed.user_id = user_id
+                ed.key = 'sharelatex_project_id'
+                ed.value = id_overleaf
+                db.session.add(ed)
+
+            db.session.commit()
+            return 'Запрос выполнен успешно.'
+
 
         return 'Запрос не распознан'
 
