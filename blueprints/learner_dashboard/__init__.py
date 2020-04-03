@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify
+from flask import Blueprint, render_template, request, abort, jsonify, json as flask_json
 import flask_login
 
 from blueprints.models import \
@@ -231,7 +231,15 @@ def view_learner_dashboard(course_id, user_id=None):
         event_date = user_problem_history.datetime.strftime('%Y-%m-%d')
         reviewer_comment = ''
 
-        time_left_for_submission = (user_problem_history.datetime + timedelta(days=10)) - datetime.now()
+        revision_interval = timedelta(days=10)
+
+        ed = ExtraData.query.filter_by(key='revision_time_interval', user_id=user_id, course_id=course_id).first()
+        if ed and user_problem_history.event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
+            ed = flask_json.loads(ed.value)
+            if str(problem_id) in ed:
+                revision_interval = timedelta(hours=ed[str(problem_id)])
+
+        time_left_for_submission = (user_problem_history.datetime + revision_interval) - datetime.now()
         deadline_passed = time_left_for_submission < timedelta(0)
         if time_left_for_submission.total_seconds() < 7200:
             n_minutes = int(time_left_for_submission.total_seconds() / 60)

@@ -29,8 +29,9 @@ grading_blueprint = Blueprint('grading', __name__, template_folder='templates')
 
 @grading_blueprint.route('/api/grading', methods=['POST'])
 @flask_login.login_required
-def api_grading():
-    json = request.get_json()
+def api_grading(json=None):
+    if json is None:
+        json = request.get_json()
     if not json or 'action' not in json or 'course_id' not in json:
         abort(400)
 

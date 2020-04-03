@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, jsonify, current_app
+from flask import Blueprint, render_template, request, abort, jsonify, current_app, json as flask_json
 from flask_mail import Message
 import flask_login
 
@@ -15,6 +15,7 @@ from blueprints.models import \
 from datetime import datetime, timedelta, timezone
 from json import dumps as to_json_string
 from json import loads as parse_json
+from math import ceil
 
 from text_tools import latex_to_html
 
@@ -75,9 +76,13 @@ def view_solution_review_requests(course_id):
 
         if json.get('action') == 'submit_for_review':
             json = request.get_json()
+            problem_id = json.get('problem_id')
 
-            datetime_last_sent_for_revision, = db.session.query(History.datetime).filter(
-                History.problem_id == json.get('problem_id'),
+            datetime_last_sent_for_revision, history_event = db.session.query(
+                History.datetime,
+                History.event
+            ).filter(
+                History.problem_id == problem_id,
                 History.user_id == user_id,
                 History.event.in_([
                     'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING',
@@ -87,8 +92,19 @@ def view_solution_review_requests(course_id):
             ).order_by(
                 History.datetime.desc()
             ).first()
-            days_left_for_submission = (datetime_last_sent_for_revision + timedelta(days=10) - datetime.now()).total_seconds() / (3600 * 24)
-            if days_left_for_submission < 0:
+
+            revision_interval = timedelta(days=10)
+
+            ed = ExtraData.query.filter_by(key='revision_time_interval', user_id=user_id, course_id=course_id).first()
+            if ed and history_event == 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING':
+                ed = flask_json.loads(ed.value)
+                if str(problem_id) in ed:
+                    revision_interval = timedelta(hours=ed[str(problem_id)])
+
+            time_left_for_submission = (datetime_last_sent_for_revision + revision_interval) - datetime.now()
+
+            hours_left_for_submission = time_left_for_submission.total_seconds() / 3600
+            if hours_left_for_submission < 0:
                 time_points_data = ExtraData.query.filter(
                     ExtraData.user_id == user_id,
                     ExtraData.course_id == course_id,
@@ -96,16 +112,17 @@ def view_solution_review_requests(course_id):
                 ).first()
 
                 time_points = int(time_points_data.value) if time_points_data else 0
-
-                if time_points > -days_left_for_submission * 3:
-                    time_points += int(days_left_for_submission * 3)
+                hours_late = -hours_left_for_submission
+                decrease = ceil(hours_late / 8)
+                if time_points >= decrease:
+                    time_points -=  decrease
                     time_points_data.value = str(time_points)
                     h = History()
                     h.user_id = user_id
                     h.problem_id = json.get('problem_id')
                     h.datetime = datetime.now()
                     h.event = 'ALTERED_USER_TIMEPOINTS'
-                    h.comment = str(int(days_left_for_submission))
+                    h.comment = str(-decrease)
                     db.session.add(h)
                 else:
                     return jsonify(result='Недостаточно time points для отправки запроса.')
@@ -185,6 +202,11 @@ def view_solution_review_requests(course_id):
             ps.status_id = status_id
             ps.timestamp_last_changed = datetime.now()
         elif action == 'send_for_revision':
+            status_id = ProblemStatusInfo.query.filter_by(code='SOLUTION_NEEDS_REVISION').first().id
+            ps = ProblemStatus.query.filter_by(user_id=h.user_id, problem_id=h.problem_id).first()
+            ps.status_id = status_id
+            ps.reference_exposure_id = None
+            ps.timestamp_last_changed = datetime.now()
             h.event = 'SENT_FOR_REVISION'
         else:
             abort(400)

@@ -184,6 +184,33 @@
                     });
                 }
             });
+
+            $('#btnSetRevisionTimeInterval').click(function(){
+                var newInterval = prompt("Введите количество часов с момента отправки задачи на дорешку до необходимости отправки решения", "48");
+                $.ajax({
+                    type: "POST",
+                    url: "/api/exposure_bulk",
+                    contentType: "application/json",
+                    dataType: "json",
+                    data: JSON.stringify({
+                        action: 'set_revision_time_interval',
+                        exposure_id: {{ exposure_id }},
+                        course_id: {{ course_id }},
+                        revision_time_interval: newInterval
+                    })
+                }).done(function () {
+                    $.toaster({
+                        message : 'Изменения сохранены',
+                        priority : 'success'
+                    });
+                    $('#exposureDate').text(newDate);
+                }).fail(function () {
+                    $.toaster({
+                        message : 'Не удалось сохранить изменения',
+                        priority : 'danger'
+                    });
+                });
+            });
         });
     </script>
 {% endblock head %}
@@ -195,6 +222,7 @@
             <div class="card-body">
             <a class="btn btn-primary" target="_blank" href="{{ url_for('exposures.print_exposure', course_id=course_id, exposure_string=exposure_id) }}">Перейти в режим печати выдачи</a>
             <button class="btn btn-secondary" id="btnChangeExposureDate">Изменить дату выдачи</button>
+            <button class="btn btn-secondary" id="btnSetRevisionTimeInterval">Установить интервал первичной отправки дорешек по выдаче</button>
             <button class="btn btn-secondary" id="btnDeleteExposure">Удалить выдачу</button>
             </div>
         </div>
