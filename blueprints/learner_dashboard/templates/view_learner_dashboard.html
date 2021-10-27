@@ -69,7 +69,7 @@ $(function(){
     {% endif %}
 
     $('button.btn-submit-for-review').click(function (evt) {
-        if (!window.confirm('Вы прочитали документ по работе с дорешками по адресу https://goo.gl/2YQL5o и проверили текст спеллчекером и авточекером?'))
+        if (!window.confirm('Вы прочитали документ по работе с дорешками по адресу https://stepik.org/lesson/258747/step/4?unit=239243 и проверили текст спеллчекером и авточекером?'))
             return;
 
         $.ajax({
@@ -149,7 +149,7 @@ $(function(){
         </div>
         {% if instructor_mode %}<h2 class="h2 mt-3">Результаты пользователя {{ username }}</h2>{% else %}
         <div class="card mt-3">
-            <a class="h4 card-header" href="https://goo.gl/2YQL5o" target="_blank"><i class="fa fa-external-link"></i> Справка по работе с информационной системой и дорешками</a>
+            <a class="h4 card-header" href="https://stepik.org/lesson/258747/step/1?unit=239243" target="_blank"><i class="fa fa-external-link"></i> Справка по работе с информационной системой и дорешками</a>
         </div>{% endif %}
         <div class="card">
             <a class="h4 card-header collapsed" data-toggle="collapse" href="#exposuresAndGrading">Содержимое выдач и результаты проверок</a>
@@ -202,16 +202,16 @@ $(function(){
             </div>
          </div>
         <div class="card mt-3">
-            <a class="h4 card-header collapsed" data-toggle="collapse" href="#solutionRevisions">Дорешки в LaTeX</a>
+            <a class="h4 card-header collapsed" data-toggle="collapse" href="#solutionRevisions">Оформление задач в LaTeX</a>
             <div class="card-body collapse" id="solutionRevisions">
                 <h5 class="card-block card-title h5">Ваши time points: {{ time_points }} <i class="fa fa-clock-o"></i>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-time-points"><i class="fa fa-pencil"></i></button>{% endif %}</h5>
 
                 <div class="card-block">
                 <h5 class="card-title h5">Полезные ссылки</h5>
                     <ul class="card-text">
-                        <li class="list-group-item"><a href="{{ 'https://www.sharelatex.com/project/' + sharelatex_project_id }}">Ваш проект на Overleaf</a>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-sharelatex-project-id"><i class="fa fa-pencil"></i></button>{% endif %}</li>
+                        <li class="list-group-item"><a href="{{ 'https://www.overleaf.com/project/' + sharelatex_project_id }}">Ваш проект на Overleaf</a>{% if instructor_mode %}  <button class="btn btn-outline-secondary set-sharelatex-project-id"><i class="fa fa-pencil"></i></button>{% endif %}</li>
                         <li class="list-group-item"><a href="http://www.dainiak.com/ilatexprimer/">Интерактивное введение в LaTeX</a></li>
-                        <li class="list-group-item"><a href="http://www.dainiak.com/latexcheck/">Авточекер</a></li>
+                        <li class="list-group-item"><a href="https://www.dainiak.com/latexcheck/index-ru.html">Авточекер</a></li>
                         <li class="list-group-item"><a href="https://stepik.org/lesson/258747/step/4?unit=239243">Правила оформления решений</a></li>
                     </ul>
                 </div>

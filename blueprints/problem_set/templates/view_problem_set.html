@@ -2,8 +2,7 @@
 {% block title %}Набор задач #{{ problem_set_id }}{% endblock %}
 {% block head %}
     <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css"/>
-    <link type="text/css" rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css"/>
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
 
@@ -45,7 +44,9 @@
                             if( response.result ){
                                 $('#typeset').html(response.result);
                                 $('#mathjaxonly').hide(0);
-                                MathJax.Hub.queue.Push(MathJax.Hub.Typeset(document.querySelector('#typeset')));
+                                MathJax.startup.document.state(0);
+                                MathJax.texReset();
+                                MathJax.typeset();
                             }
                         }
                     });
@@ -281,11 +282,15 @@
                 },
                 onItemInserted: function () {
                     $("#jsGrid").jsGrid("sort", {field: "sort_key"});
-                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                    MathJax.startup.document.state(0);
+                    MathJax.texReset();
+                    MathJax.typeset();
                 },
                 onItemUpdated: function () {
                     $("#jsGrid").jsGrid("sort", {field: "sort_key"});
-                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                    MathJax.startup.document.state(0);
+                    MathJax.texReset();
+                    MathJax.typeset();
                 },
                 onItemEditing: function(args) {
                     args.cancel = true;
@@ -332,7 +337,9 @@
                         }
                     });
 
-                    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "jsGrid"]);
+                    MathJax.startup.document.state(0);
+                    MathJax.texReset();
+                    MathJax.typeset();
                 }
             });
         });

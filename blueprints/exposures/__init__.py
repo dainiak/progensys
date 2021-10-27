@@ -78,14 +78,14 @@ def view_exposure(course_id, exposure_string):
         abort(404)
 
     # TODO: make this a single SQL query instead of SQL&Python mix
-    max_problems_per_set = max(x[1] for x in db.session.query(
+    max_problems_per_set = max((x[1] for x in db.session.query(
         ProblemSetContent.problem_set_id, db.func.count(sql_distinct(ProblemSetContent.problem_id))
     ).group_by(
         ProblemSetContent.problem_set_id
     ).filter(
         ProblemSetContent.problem_set_id == ExposureContent.problem_set_id,
         ExposureContent.exposure_id == exposure.id
-    ).all())
+    ).all()), default=1)
 
     return render_template(
         'view_exposure.html',
@@ -441,6 +441,16 @@ def api_exposure_bulk():
                 ps = ProblemStatus(user_id, problem_id, problem_status_id)
                 ps.reference_exposure_id = exposure_id
                 db.session.add(ps)
+            if not History.query.filter_by(
+                    problem_id=problem_id,
+                    user_id=user_id,
+                    event='SENT_FOR_REVISION_DURING_EXPOSURE_GRADING').first():
+                h = History()
+                h.problem_id = problem_id
+                h.user_id = user_id
+                h.datetime = datetime.now()
+                h.event = 'SENT_FOR_REVISION_DURING_EXPOSURE_GRADING'
+                db.session.add(h)
 
         db.session.commit()
         return jsonify(result='Успешно')
@@ -556,18 +566,6 @@ def new_exposure():
         for user_id in user_ids:
             db.session.add(ExposureContent(exposure.id, user_id, problem_set_id))
 
-        # if exposure_venue == 'home:
-        #     db.session.flush()
-        #     ProblemStatusInfo.query.filter_by(code='SOLUTION_NEEDS_REVISION').first().code
-        #     api_grading(flask_json.dumps({
-        #         'course_id': course_id,
-        #         'action': 'update',
-        #         'item': {
-        #             user_id = item.get('user_id'),
-        #             exposure_id = item.get('exposure_id'),
-        #             problem_set_id = item.get('problem_set_id'),
-        #         }
-        #     }))
         db.session.commit()
 
         return redirect(url_for(

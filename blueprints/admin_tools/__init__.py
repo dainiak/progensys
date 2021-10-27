@@ -22,12 +22,13 @@ from blueprints.models import \
     GroupMembership, \
     SystemAdministrator, \
     Problem, \
+    ProblemStatus, \
     ExtraData
 
-migration_tools_blueprint = Blueprint('migration_tools', __name__, template_folder='templates')
+admin_tools_blueprint = Blueprint('admin_tools', __name__, template_folder='templates')
 
 
-@migration_tools_blueprint.route('/migration_tools', methods=['POST', 'GET'])
+@admin_tools_blueprint.route('/admin_tools', methods=['POST', 'GET'])
 @flask_login.login_required
 def interface():
     if not SystemAdministrator.query.filter_by(user_id=flask_login.current_user.id).first():
@@ -97,7 +98,10 @@ def interface():
                 return 'Error'
 
             num_sent_mails = 0
-            for user in User.query.filter(User.username.in_(json_data.get('usernames'))).all():
+            sent_mails_usernames = []
+            usernames = json_data.get('usernames', [])
+            left_usernames = set(usernames)
+            for user in User.query.filter(User.username.in_(usernames)).all():
                 if not user.email:
                     return jsonify(result='Невозможно выслать пароль: не указан email.')
 
@@ -105,7 +109,7 @@ def interface():
                 letters = 'qwertyuiopasdfghjklzxcvbnm1029384756'
                 new_password = ''.join(letters[int(random.random() * len(letters))] for _ in range(8))
 
-                msg = Message(subject='Временный пароль к информационной системе',
+                msg = Message(subject='Пароль к информационной системе',
                               body=
 f'''Ваше имя пользователя для входа в систему progensys.dainiak.com: “{user.username}”
 Ваш пароль для входа: “{new_password}”
@@ -113,11 +117,16 @@ f'''Ваше имя пользователя для входа в систему
                               recipients=[user.email])
                 current_app.config['MAILER'].send(msg)
                 num_sent_mails += 1
+                sent_mails_usernames.append((user.username, new_password))
+                left_usernames.discard(user.username)
 
                 user.password_hash = md5(new_password)
 
             db.session.commit()
-            return 'Восстановление паролей прошло успешно, отправлено {} писем.'.format(num_sent_mails)
+            return (
+                f'Восстановление паролей прошло успешно, отправлено {num_sent_mails} писем по логинам: {sent_mails_usernames}'
+                +'\n' + f'Письма не отправлены на логины: {left_usernames}'
+            )
 
         elif user_request == 'change_dollars_to_brackets':
             import re
@@ -174,18 +183,58 @@ f'''Ваше имя пользователя для входа в систему
             db.session.commit()
             return 'Запрос выполнен успешно.'
 
-        elif user_request == 'i_am_lazy':
+        elif user_request == 'change_problem_status':
+            problem_id = json_data.get('problem_id') or json_data.get('problem')
+            user_id = json_data.get('user_id') or json_data.get('user')
+            status = json_data.get('status')
+            status_id = json_data.get('status_id')
+
+            if not problem_id or not user_id or not status:
+                return 'Не указаны данные problem_id, user_id, status'
+
+            if status_id is None:
+                if 'incorrect' in status.lower() or 'wrong' in status.lower():
+                    status_id = 3
+                elif 'revision' in status.lower():
+                    status_id = 4
+                elif 'correct' in status.lower():
+                    status_id = 5
+                elif 'not_exposed' in status.lower():
+                    status_id = 0
+                else:
+                    return 'Не указан верный status'
+
+            ps = ProblemStatus.query.filter_by(user_id=user_id,problem_id=problem_id).first()
+            if not ps:
+                ps = ProblemStatus()
+                ps.user_id=user_id
+                ps.problem_id=problem_id
+                ps.reference_exposure_id = None
+                ps.timestamp_last_changed = datetime.now()
+
+            ps.status_id = status_id
+            # ps.reference_exposure_id = None
+            ps.timestamp_last_changed = datetime.now()
+            db.session.add(ps)
+            db.session.commit()
+            return 'Запрос выполнен успешно.'
+
+        elif user_request == 'bulk_add_learners':
             course_id = json_data.get('course_id')
+            username_postfix = json_data.get('username_postfix', '')
+            if username_postfix != '':
+                username_postfix = '_' + username_postfix
+
             if not course_id:
                 return 'Не указан курс'
             role_id = Role.query.filter_by(code='LEARNER').first().id
-            everything = json_data.get('everything')
-            for line in everything.strip().splitlines():
-                surname, name, group_code, email_main, email_overleaf, id_overleaf, id_stepik = line.split('\t')
+            data = json_data.get('data')
+            for line in data.strip().splitlines():
+                name, surname, email_main, group_code, email_overleaf, id_stepik, id_overleaf = line.split('\t')
                 if ('@' not in email_main) or ('@' not in email_overleaf) or ('@' in group_code) or (not id_stepik.isdecimal()):
                     break
 
-                username = f'{surname} {name}'
+                username = f'{surname}_{name}{username_postfix}'
                 new_user = User.query.filter_by(username=username).first()
                 if not new_user:
                     new_user = User()

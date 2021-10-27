@@ -50,7 +50,7 @@ def process_problem_variations(text, variation=None):
             return options[variation % len(options)]
 
         return re.compile(
-            r'\{\{(.*?)\}\}', 
+            r'\{\{(.*?)\}\}',
             re.DOTALL
         ).sub(
             variation_chooser,
@@ -119,6 +119,7 @@ def latex_to_html(text, variation=None):
     text = re.compile(r'\\section{(.*?)}', re.DOTALL).sub(lambda m: rf'<div class="latex-section">{m.group(1)}</div>', text)
     text = re.compile(r'\\textit{(.*?)}', re.DOTALL).sub(lambda m: rf'<em>{m.group(1)}</em>', text)
     text = re.compile(r'\\textbf{(.*?)}', re.DOTALL).sub(lambda m: rf'<strong>{m.group(1)}</strong>', text)
+    text = re.compile(r'\\includegraphics\[(.*?)]{(.*?)}', re.DOTALL).sub(lambda m: f"<img style=\"{m.group(1).replace('=', ':')};\" src=\"{m.group(2)}\">", text)
     text = re.sub(r'\\,', ' ', text).replace('---', '—').replace('--', '–').replace('~', '&nbsp;')
 
     text = process_latex_lists(text)
@@ -127,5 +128,11 @@ def latex_to_html(text, variation=None):
     return text
 
 
-def process_problem_statement(text):
+def process_problem_statement(text, leave_latex=False):
+    if leave_latex:
+        text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)
+        text = escape(text)
+        text = process_problem_variations(text, None)
+        return text
+
     return latex_to_html(text)

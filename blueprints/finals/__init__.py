@@ -37,6 +37,7 @@ def get_final_grade(num_topics_per_level, num_checked_topics_per_level):
     #   Если в итоге все листики после сгорания шляпок или кубков покрылись, то: оценка  3 -- осталось 0 шляпок и кубков.
     #   Иначе покрываем кубками все недостающие шляпки (2 на 1). Если шляпки покрылись не все, ставим оценку 4.
     #   Пусть покрылись все шляпки. Дальше если кубков не осталось -- оценка 5, если один кубок -- 6, кубков хотя бы 2 -- 7.
+
     diffs = {i: num_topics_per_level[i]-num_checked_topics_per_level[i] for i in [1, 2, 3]}
     if sum(diffs.values()) == 0:
         return 10
@@ -55,8 +56,10 @@ def get_final_grade(num_topics_per_level, num_checked_topics_per_level):
             num_checked_topics_per_level[1] += 1
             continue
         break
+
     if num_checked_topics_per_level[1] < num_topics_per_level[1]:
         return max(1, 3 + num_checked_topics_per_level[1] - num_topics_per_level[1])
+
     while num_checked_topics_per_level[2] < num_topics_per_level[2]:
         if num_checked_topics_per_level[3] >= 2:
             num_checked_topics_per_level[3] -= 2

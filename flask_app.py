@@ -21,7 +21,7 @@ from blueprints.finals import finals_blueprint
 
 from blueprints.autocompletion import autocompletion_blueprint
 
-from blueprints.migration_tools import migration_tools_blueprint
+from blueprints.admin_tools import admin_tools_blueprint
 
 import flask_login
 
@@ -54,7 +54,7 @@ app.register_blueprint(solution_reviews_blueprint)
 app.register_blueprint(topics_blueprint)
 app.register_blueprint(finals_blueprint)
 
-app.register_blueprint(migration_tools_blueprint)
+app.register_blueprint(admin_tools_blueprint)
 
 app.secret_key = tpbeta_app_secret_key
 

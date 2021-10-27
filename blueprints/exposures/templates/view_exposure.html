@@ -187,6 +187,9 @@
 
             $('#btnSetRevisionTimeInterval').click(function(){
                 var newInterval = prompt("Введите количество часов с момента отправки задачи на дорешку до необходимости отправки решения", "48");
+                if(!newInterval)
+                    return;
+
                 $.ajax({
                     type: "POST",
                     url: "/api/exposure_bulk",

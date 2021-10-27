@@ -23,15 +23,15 @@ problems_blueprint = Blueprint('problems', __name__, template_folder='templates'
 @problems_blueprint.route('/problem-<int:problem_id>', methods=['GET'])
 @flask_login.login_required
 def view_problems(problem_id=None):
-    (role_code,) = db.session.query(
-        Role.code
+    (role_code,course_id) = db.session.query(
+        Role.code, Participant.course_id
     ).filter(
         Participant.user_id == flask_login.current_user.id,
         Role.id == Participant.role_id
     ).first()
 
     if role_code == 'LEARNER':
-        return redirect(url_for('problems.print_problem', course_id=2, problem_id=problem_id))
+        return redirect(url_for('problems.print_problem', course_id=course_id, problem_id=problem_id))
 
     if role_code not in ['INSTRUCTOR', 'ADMIN', 'GRADER']:
         abort(403)
@@ -68,7 +68,8 @@ def print_problem(course_id, problem_id):
     return render_template(
         'print_problem.html',
         problem_id=problem_id,
-        problem_statement=process_problem_statement(problem.statement)
+        problem_statement=process_problem_statement(problem.statement),
+        problem_statement_latex_for_student=process_problem_statement(problem.statement, leave_latex=True)
     )
 
 

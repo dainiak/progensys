@@ -10,7 +10,9 @@ from blueprints.models import \
     ProblemStatusInfo, \
     ProblemStatus, \
     History, \
-    ExtraData
+    ExtraData, \
+    GroupMembership, \
+    Group
 
 from datetime import datetime, timedelta, timezone
 from json import dumps as to_json_string
@@ -237,6 +239,7 @@ def view_solution_review_requests(course_id):
     if current_user_role not in ['ADMIN', 'INSTRUCTOR', 'GRADER']:
         abort(403)
 
+    user_groups_cache = dict()
     review_requests = []
     for user_id, name_first, name_last, problem_id in db.session.query(
                 User.id,
@@ -264,6 +267,14 @@ def view_solution_review_requests(course_id):
         ).order_by(
             History.datetime.desc()
         ).first()
+
+        if user_id not in user_groups_cache:
+            user_groups_cache[user_id] = ' '.join(str(x[0]) for x in db.session.query(Group.code).filter(
+                GroupMembership.user_id == user_id,
+                GroupMembership.group_id == Group.id
+            ).all())
+        user_groups = user_groups_cache[user_id]
+
 
         #TODO: check for DB integrity here
         if not user_problem_history:
@@ -302,7 +313,8 @@ def view_solution_review_requests(course_id):
 
         review_requests.append({
             'user_id': user_id,
-            'user_name': '{} {}'.format(name_last, name_first),
+            'user_groups': str(user_groups),
+            'user_name': f'{name_last} {name_first}',
             'problem_id': problem_id,
             'review_status': review_status,
             'deadline_passed': deadline_passed,

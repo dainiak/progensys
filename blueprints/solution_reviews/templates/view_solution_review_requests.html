@@ -55,6 +55,11 @@
                     }
                 },
                 {
+                    title: "Группа",
+                    name: "user_groups",
+                    type: "text"
+                },
+                {
                     title: "Имя пользователя",
                     name: "user_name",
                     type: "text"
@@ -85,6 +90,7 @@
                             var result =
                                 (!filter.user_name || item.user_name.includes(filter.user_name))
                                 && (!filter.review_status || item.review_status.includes(filter.review_status))
+                                && (!filter.user_groups || item.user_groups.includes(filter.user_groups))
                                 && (!filter.problem_id || item.problem_id == filter.problem_id)
                                 && (!filter.user_id || item.user_id == filter.user_id);
                             return result;
