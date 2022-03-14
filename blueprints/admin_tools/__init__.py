@@ -222,7 +222,7 @@ f'''Ваше имя пользователя для входа в систему
         elif user_request == 'bulk_add_learners':
             course_id = json_data.get('course_id')
             username_postfix = json_data.get('username_postfix', '')
-            if username_postfix != '':
+            if not username_postfix.startswith('_'):
                 username_postfix = '_' + username_postfix
 
             if not course_id:

@@ -4,6 +4,33 @@
 <script type="text/javascript">
 $(function(){
     {% if instructor_mode %}
+    $('button.reset-problem-status').on('click', function(evt){
+        $.ajax({
+            type: "POST",
+            url: "{{ url_for('solution_reviews.view_solution_review_requests', course_id=course_id) }}",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({
+                action: 'send_for_revision',
+                user_id: {{user_id}},
+                course_id: {{ course_id }},
+                problem_id: evt.target.dataset.problemId,
+                comment: 'Задача переведена преподавателем из статуса зачтённой в статус “на проверке”. Если это произошло в результате обнаружения плагиата, то сдавать задачу не следует.',
+                notify_learner: false
+            })
+        }).done(function (response) {
+            $.toaster({
+                message : response.result.toString(),
+                priority : 'success'
+            });
+        }).fail(function () {
+            $.toaster({
+                message : 'Не удалось сохранить изменения',
+                priority : 'danger'
+            });
+        });
+    });
+
     $('button.set-sharelatex-project-id').on('click', function(evt){
         var sharelatex_project_id = window.prompt('Введите ID проекта на Overleaf (24 символа)');
         if(sharelatex_project_id === null)
@@ -196,7 +223,7 @@ $(function(){
                     </thead>
                         <tbody>
                         {% for item in trajectory %}<tr>
-                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td>{% if item.topic_level %}<td>{% if item.topic_level == 1 %}<i class="fa fa-leaf topic-level"></i>{% elif item.topic_level == 2 %}<i class="fa fa-graduation-cap topic-level"></i>{% elif item.topic_level == 3 %}<i class="fa fa-trophy topic-level"></i>{% endif %}</td>{% else %}<td>?</td>{% endif %}<td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
+                            <td><strong>{% if item.problem_id %}{% if item.is_on_revision %}<span class="opaque">&#x2713;</span>{% else %}&#x2714;{% endif %}{% else %}&#x2610;{% endif %}</strong></td><td>{{ item.topic_id }}</td>{% if item.topic_level %}<td>{% if item.topic_level == 1 %}<i class="fa fa-leaf topic-level"></i>{% elif item.topic_level == 2 %}<i class="fa fa-graduation-cap topic-level"></i>{% elif item.topic_level == 3 %}<i class="fa fa-trophy topic-level"></i>{% endif %}</td>{% else %}<td>?</td>{% endif %}<td>{% if item.topic_title %}{{ item.topic_title }}{% else %}{{ item.topic_code }}{% endif %}</td><td>{% if item.problem_id %}{{ item.problem_id }}{% if instructor_mode %}<button class="btn btn-outline-secondary reset-problem-status" data-problem-id="{{ item.problem_id }}">отменить</button>{% endif %}{% else %}<div class="btn-group mr-2"><button class="btn btn-outline-secondary btn-mark-topic" data-emo=":(" data-topic-id="{{ item.topic_id }}">отложить</button><button class="btn btn-outline-success btn-mark-topic" data-emo=":)" data-topic-id="{{ item.topic_id }}">приоритизировать</button></div>{% endif %}</td>
                         </tr>{% endfor %}</tbody>
                 </table>
             </div>
