@@ -1,0 +1,3 @@
+## ProGenSys — problem set generation system
+
+This is a micro-LMS (learning management system) has been used over the years to automatically generate problem sets for the “Discrete Structures” course, grade the works and allow students to track the progress. A course is associated with a default trajectory (a collection of topics) that the student should go through. The students get problems sets, each problem set is unique for each student. An automated system employs combinatorial optimization to create problem sets for the students so that the students get different (where possible) problems while receiving problems from the right topics that they have yet to cover.
