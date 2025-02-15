@@ -188,12 +188,12 @@ def api_trajectories():
         return jsonify(
             list(
                 {
-                    "id": id,
+                    "id": id_,
                     "title": title,
                     "comment": comment,
                     "url": url_for("trajectory.view_trajectory", trajectory_id=id),
                 }
-                for id, title, comment in db.session.query(Trajectory.id, Trajectory.title, Trajectory.comment)
+                for id_, title, comment in db.session.query(Trajectory.id, Trajectory.title, Trajectory.comment)
                 .filter(Trajectory.course_id == course_id)
                 .all()
             )

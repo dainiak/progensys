@@ -205,14 +205,11 @@ def interface():
 
             ps = ProblemStatus.query.filter_by(user_id=user_id, problem_id=problem_id).first()
             if not ps:
-                ps = ProblemStatus()
-                ps.user_id = user_id
-                ps.problem_id = problem_id
+                ps = ProblemStatus(user_id, problem_id, status_id)
                 ps.reference_exposure_id = None
                 ps.timestamp_last_changed = datetime.now()
 
             ps.status_id = status_id
-            # ps.reference_exposure_id = None
             ps.timestamp_last_changed = datetime.now()
             db.session.add(ps)
             db.session.commit()

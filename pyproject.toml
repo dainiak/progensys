@@ -7,7 +7,9 @@ dependencies = [
     "flask",
     "flask-login",
     "flask-mail",
-    "flask-sqlalchemy"
+    "flask-sqlalchemy",
+    "flask_api",
+    "pulp"
 ]
 
 [tool.ruff]

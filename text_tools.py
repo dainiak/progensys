@@ -5,7 +5,7 @@ import re
 
 
 def process_problem_variations_mathmode(text, variation=None):
-    return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(
+    return re.compile(r"\{\{(.*?)}}", re.DOTALL).sub(
         lambda m: "".join(
             r"\class{problem-variation-" + str(i) + "}{ " + opt + " } " for i, opt in enumerate(m.group(1).split("||"))
         ),
@@ -14,7 +14,7 @@ def process_problem_variations_mathmode(text, variation=None):
 
 
 def process_problem_variations_textmode(text, variation=None):
-    return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(
+    return re.compile(r"\{\{(.*?)}}", re.DOTALL).sub(
         lambda m: "".join(
             r'<span class="problem-variation-{0}">{1}</span>'.format(i, opt)
             for i, opt in enumerate(m.group(1).split("||"))
@@ -45,16 +45,16 @@ def process_problem_variations(text, variation=None):
             options = match_object.group(1).split("||")
             return options[variation % len(options)]
 
-        return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(variation_chooser, text)
+        return re.compile(r"\{\{(.*?)}}", re.DOTALL).sub(variation_chooser, text)
 
-    num_variations = list(set(len(s.split("||")) for s in re.compile(r"\{\{(.*?)\}\}", re.DOTALL).findall(text)))
+    num_variations = list(set(len(s.split("||")) for s in re.compile(r"\{\{(.*?)}}", re.DOTALL).findall(text)))
     text = re.compile(r"\\\((.*?)\\\)", re.DOTALL).sub(
         lambda m: r"\({0}\)".format(
             process_problem_variations_mathmode(m.group(1)),
         ),
         text,
     )
-    text = re.compile(r"\\\[(.*?)\\\]", re.DOTALL).sub(
+    text = re.compile(r"\\\[(.*?)\\]", re.DOTALL).sub(
         lambda m: r"\[{0}\]".format(
             process_problem_variations_mathmode(m.group(1)),
         ),

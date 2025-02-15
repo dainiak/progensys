@@ -1,4 +1,4 @@
-# coding=utf8
+from os import environ
 
 from flask import Flask
 from flask import render_template, request, redirect, url_for
@@ -25,18 +25,16 @@ from blueprints.autocompletion import autocompletion_blueprint
 from blueprints.admin_tools import admin_tools_blueprint
 
 import flask_login
+from os import environ
 
-# Security sensitive constants are imported from a file not being synced with github
-from tpbeta_security import (
-    tpbeta_app_secret_key,
-    tpbeta_debug_mode,
-    tpbeta_sqlalchemy_db_uri,
-    tpbeta_mail_server,
-    tpbeta_mail_port,
-    tpbeta_mail_username,
-    tpbeta_mail_password,
-    tpbeta_mail_default_sender,
-)
+app_secret_key = environ.get('APP_SECRET_KEY')
+debug_mode = environ.get('DEBUG_MODE')
+sqlalchemy_db_uri = environ.get('SQLALCHEMY_DATABASE_URI')
+mail_server = environ.get('MAIL_SERVER')
+mail_port = environ.get('MAIL_PORT')
+mail_username = environ.get('MAIL_USERNAME')
+mail_password = environ.get('MAIL_PASSWORD')
+mail_default_sender = environ.get('MAIL_DEFAULT_SENDER')
 
 
 def parse_person_name(name):
@@ -66,20 +64,20 @@ app.register_blueprint(finals_blueprint)
 
 app.register_blueprint(admin_tools_blueprint)
 
-app.secret_key = tpbeta_app_secret_key
+app.secret_key = app_secret_key
 
-app.config["SQLALCHEMY_DATABASE_URI"] = tpbeta_sqlalchemy_db_uri
+app.config["SQLALCHEMY_DATABASE_URI"] = sqlalchemy_db_uri
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-app.config["MAIL_SERVER"] = tpbeta_mail_server
-app.config["MAIL_PORT"] = tpbeta_mail_port
-app.config["MAIL_USERNAME"] = tpbeta_mail_username
-app.config["MAIL_PASSWORD"] = tpbeta_mail_password
-app.config["MAIL_DEFAULT_SENDER"] = tpbeta_mail_default_sender
+app.config["MAIL_SERVER"] = mail_server
+app.config["MAIL_PORT"] = mail_port
+app.config["MAIL_USERNAME"] = mail_username
+app.config["MAIL_PASSWORD"] = mail_password
+app.config["MAIL_DEFAULT_SENDER"] = mail_default_sender
 app.config["MAIL_USE_SSL"] = True
 
-app.debug = tpbeta_debug_mode
+app.debug = debug_mode
 db.init_app(app)
 
 
