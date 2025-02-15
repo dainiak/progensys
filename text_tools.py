@@ -5,26 +5,21 @@ import re
 
 
 def process_problem_variations_mathmode(text, variation=None):
-    return re.compile(
-        r'\{\{(.*?)\}\}',
-        re.DOTALL
-    ).sub(
-        lambda m: ''.join(
-            r'\class{problem-variation-' + str(i) + '}{ ' + opt + ' } '
-            for i, opt in enumerate(m.group(1).split('||'))),
-        text
+    return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(
+        lambda m: "".join(
+            r"\class{problem-variation-" + str(i) + "}{ " + opt + " } " for i, opt in enumerate(m.group(1).split("||"))
+        ),
+        text,
     )
 
 
 def process_problem_variations_textmode(text, variation=None):
-    return re.compile(
-        r'\{\{(.*?)\}\}',
-        re.DOTALL
-    ).sub(
-        lambda m: ''.join(
+    return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(
+        lambda m: "".join(
             r'<span class="problem-variation-{0}">{1}</span>'.format(i, opt)
-            for i, opt in enumerate(m.group(1).split('||'))),
-        text
+            for i, opt in enumerate(m.group(1).split("||"))
+        ),
+        text,
     )
 
 
@@ -45,32 +40,25 @@ def lcm(seq):
 
 def process_problem_variations(text, variation=None):
     if variation is not None:
+
         def variation_chooser(match_object):
-            options = match_object.group(1).split('||')
+            options = match_object.group(1).split("||")
             return options[variation % len(options)]
 
-        return re.compile(
-            r'\{\{(.*?)\}\}',
-            re.DOTALL
-        ).sub(
-            variation_chooser,
-            text
-        )
+        return re.compile(r"\{\{(.*?)\}\}", re.DOTALL).sub(variation_chooser, text)
 
-    num_variations = list(set(len(s.split('||')) for s in re.compile(r'\{\{(.*?)\}\}', re.DOTALL).findall(text)))
-    text = re.compile(
-        r'\\\((.*?)\\\)',
-        re.DOTALL
-    ).sub(
-        lambda m: r'\({0}\)'.format(process_problem_variations_mathmode(m.group(1)), variation),
-        text
+    num_variations = list(set(len(s.split("||")) for s in re.compile(r"\{\{(.*?)\}\}", re.DOTALL).findall(text)))
+    text = re.compile(r"\\\((.*?)\\\)", re.DOTALL).sub(
+        lambda m: r"\({0}\)".format(
+            process_problem_variations_mathmode(m.group(1)),
+        ),
+        text,
     )
-    text = re.compile(
-        r'\\\[(.*?)\\\]',
-        re.DOTALL
-    ).sub(
-        lambda m: r'\[{0}\]'.format(process_problem_variations_mathmode(m.group(1)), variation),
-        text
+    text = re.compile(r"\\\[(.*?)\\\]", re.DOTALL).sub(
+        lambda m: r"\[{0}\]".format(
+            process_problem_variations_mathmode(m.group(1)),
+        ),
+        text,
     )
     text = process_problem_variations_textmode(text, variation)
 
@@ -81,7 +69,8 @@ def process_problem_variations(text, variation=None):
     if max_variations <= 1:
         return text
 
-    buttons_html = '\n'.join('''
+    buttons_html = "\n".join(
+        """
         <button
         class="problem-variation-control btn btn-default"
         data-variation="{0}"
@@ -90,37 +79,45 @@ def process_problem_variations(text, variation=None):
                 $(event.target).parent().parent().find('.problem-variation-' + i.toString()).hide(0);
             }}
             $(event.target).parent().parent().find('.problem-variation-' + event.target.dataset.variation).css('display','inline');
-        ">{0}</button>'''.replace('\n', ''). \
-                             format(i, max_variations) for i in range(lcm(num_variations)))
+        ">{0}</button>""".replace("\n", "").format(i, max_variations)
+        for i in range(lcm(num_variations))
+    )
 
     return r'<div class="dontprint">Вариация {0}</div>{1}'.format(buttons_html, text)
 
 
 def process_latex_lists(text):
     def shuffler(s):
-        s = s.split(r'\item')[1:]
+        s = s.split(r"\item")[1:]
         random.shuffle(s)
-        return r'\begin{itemize} \item' + r' \item '.join(s) + r'\end{itemize}'
+        return r"\begin{itemize} \item" + r" \item ".join(s) + r"\end{itemize}"
 
-    text = re.compile(r'\\begin{shuffledlist}(.*?)\\end{shuffledlist}', re.DOTALL).sub(lambda m: shuffler(m.group(1)),
-                                                                                       text)
+    text = re.compile(r"\\begin{shuffledlist}(.*?)\\end{shuffledlist}", re.DOTALL).sub(
+        lambda m: shuffler(m.group(1)), text
+    )
 
-    return text \
-        .replace(r'\begin{enumerate}', '<ol>') \
-        .replace(r'\end{enumerate}', '</ol>') \
-        .replace(r'\begin{itemize}', '<ul>') \
-        .replace(r'\end{itemize}', '</ul>') \
-        .replace(r'\item', '<li>')
+    return (
+        text.replace(r"\begin{enumerate}", "<ol>")
+        .replace(r"\end{enumerate}", "</ol>")
+        .replace(r"\begin{itemize}", "<ul>")
+        .replace(r"\end{itemize}", "</ul>")
+        .replace(r"\item", "<li>")
+    )
+
 
 def latex_to_html(text, variation=None):
-    text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)
+    text = re.compile(r"(?<!\\)%.*$", re.MULTILINE).sub("", text)
     text = escape(text)
-    text = re.compile(r'\\emph{(.*?)}', re.DOTALL).sub(lambda m: rf'<em>{m.group(1)}</em>', text)
-    text = re.compile(r'\\section{(.*?)}', re.DOTALL).sub(lambda m: rf'<div class="latex-section">{m.group(1)}</div>', text)
-    text = re.compile(r'\\textit{(.*?)}', re.DOTALL).sub(lambda m: rf'<em>{m.group(1)}</em>', text)
-    text = re.compile(r'\\textbf{(.*?)}', re.DOTALL).sub(lambda m: rf'<strong>{m.group(1)}</strong>', text)
-    text = re.compile(r'\\includegraphics\[(.*?)]{(.*?)}', re.DOTALL).sub(lambda m: f"<img style=\"{m.group(1).replace('=', ':')};\" src=\"{m.group(2)}\">", text)
-    text = re.sub(r'\\,', ' ', text).replace('---', '—').replace('--', '–').replace('~', '&nbsp;')
+    text = re.compile(r"\\emph{(.*?)}", re.DOTALL).sub(lambda m: rf"<em>{m.group(1)}</em>", text)
+    text = re.compile(r"\\section{(.*?)}", re.DOTALL).sub(
+        lambda m: rf'<div class="latex-section">{m.group(1)}</div>', text
+    )
+    text = re.compile(r"\\textit{(.*?)}", re.DOTALL).sub(lambda m: rf"<em>{m.group(1)}</em>", text)
+    text = re.compile(r"\\textbf{(.*?)}", re.DOTALL).sub(lambda m: rf"<strong>{m.group(1)}</strong>", text)
+    text = re.compile(r"\\includegraphics\[(.*?)]{(.*?)}", re.DOTALL).sub(
+        lambda m: f'<img style="{m.group(1).replace("=", ":")};" src="{m.group(2)}">', text
+    )
+    text = re.sub(r"\\,", " ", text).replace("---", "—").replace("--", "–").replace("~", "&nbsp;")
 
     text = process_latex_lists(text)
     text = process_problem_variations(text, variation)
@@ -130,7 +127,7 @@ def latex_to_html(text, variation=None):
 
 def process_problem_statement(text, leave_latex=False):
     if leave_latex:
-        text = re.compile(r'(?<!\\)%.*$', re.MULTILINE).sub('', text)
+        text = re.compile(r"(?<!\\)%.*$", re.MULTILINE).sub("", text)
         text = escape(text)
         text = process_problem_variations(text, None)
         return text
