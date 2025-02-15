@@ -1,6 +1,7 @@
 __pycache__
 sqldumps/
 venv/
+.venv/
 .idea/
 tpbeta_security.py
 flask_app.pyc
